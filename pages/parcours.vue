@@ -1,0 +1,50 @@
+<script setup lang="ts">
+import { computed } from 'vue';
+import { GraduationCap } from 'lucide-vue-next';
+import { useFetch, useSeoMeta } from '#imports';
+import { demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
+
+useSeoMeta({ title: 'Parcours — Carrel DOSSO', description: 'Le parcours et les expériences de Carrel DOSSO.' });
+const { data } = await useFetch<PortfolioData>('/api/portfolio', { default: () => demoPortfolio });
+const portfolio = computed(() => data.value || demoPortfolio);
+const journey = computed(() => [...portfolio.value.journey].sort((a, b) => a.sortOrder - b.sortOrder));
+const educations = computed(() => [...portfolio.value.educations].sort((a, b) => a.sortOrder - b.sortOrder));
+</script>
+
+<template>
+  <div class="site-shell">
+    <PortfolioHeader :configured="portfolio.configured" :source="portfolio.source" />
+    <main class="shell-container route-page">
+      <header class="section-head"><div><div class="eyebrow">01 / Parcours</div><h1>Mon <span class="gradient-text">parcours</span></h1></div><p class="section-sub">// Expériences professionnelles et formations</p></header>
+      <section v-if="educations.length" class="journey-group">
+        <h2>Formations &amp; diplômes</h2>
+        <div class="timeline">
+          <article v-for="item in educations" :key="item.id || `${item.institution}-${item.startDate}`" class="window timeline-card">
+            <GraduationCap class="timeline-mark" :size="19" />
+            <img v-if="item.imageUrl" class="journey-image" :src="item.imageUrl" :alt="`Visuel associé à ${item.title} à ${item.institution}`" loading="lazy">
+            <span class="date">{{ item.startDate }} — {{ item.endDate || 'En cours' }}</span>
+            <h2>{{ item.title }}</h2>
+            <p class="mono journey-organization">{{ item.institution }}<span v-if="item.degree"> · {{ item.degree }}</span><span v-if="item.location"> · {{ item.location }}</span></p>
+            <p v-if="item.description">{{ item.description }}</p>
+            <span class="education-status">{{ item.status === 'completed' ? 'Diplôme obtenu' : 'Formation en cours' }}</span>
+          </article>
+        </div>
+      </section>
+      <section v-if="journey.length" class="journey-group">
+        <h2>Expériences &amp; étapes de parcours</h2>
+        <div class="timeline">
+          <article v-for="item in journey" :key="`${item.organization}-${item.startDate}`" class="window timeline-card">
+            <GraduationCap class="timeline-mark" :size="19" />
+            <img v-if="item.imageUrl" class="journey-image" :src="item.imageUrl" :alt="`Visuel associé à ${item.role} chez ${item.organization}`" loading="lazy">
+            <span class="date">{{ item.startDate }} — {{ item.endDate || 'Aujourd’hui' }}</span>
+            <h2>{{ item.role }}</h2>
+            <p class="mono journey-organization">{{ item.organization }}<span v-if="item.location"> · {{ item.location }}</span></p>
+            <p>{{ item.description }}</p>
+          </article>
+        </div>
+      </section>
+      <p v-if="!journey.length&&!educations.length" class="window admin-empty">Les informations de parcours seront présentées ici prochainement.</p>
+      <NuxtLink class="button secondary route-home-link" to="/">Retour à l’accueil</NuxtLink>
+    </main>
+  </div>
+</template>

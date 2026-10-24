@@ -1,0 +1,30 @@
+{
+  "extends": "./.nuxt/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "types": ["node"]
+  },
+  "include": [
+    ".nuxt/**/*.d.ts",
+    "app.vue",
+    "nuxt.config.ts",
+    "pages/**/*.vue",
+    "components/**/*.vue",
+    "composables/**/*.ts",
+    "server/api/**/*.ts",
+    "server/utils/**/*.ts",
+    "scripts/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".nuxt",
+    ".output",
+    "client/**",
+    "shared/**",
+    "server/_core/**",
+    "server/**/*.test.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "drizzle.config.ts"
+  ]
+}
