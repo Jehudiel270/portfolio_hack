@@ -1666,7 +1666,7 @@ html[data-theme='light'] .topbar .theme-toggle:hover {
 .site-shell .project-card,
 .site-shell .project-feature,
 .site-shell .achievement-card {
-  background: linear-gradient(135deg, rgba(8, 18, 34, 0.24), rgba(5, 12, 25, 0.16));
+  background: linear-gradient(135deg, rgba(8, 18, 34, 0.48), rgba(5, 12, 25, 0.34));
   backdrop-filter: blur(10px) saturate(125%);
   -webkit-backdrop-filter: blur(10px) saturate(125%);
 }
@@ -1925,6 +1925,40 @@ html[data-theme='light'] .nav-mobile {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
   }
+}
+
+html:not([data-theme='light'])[data-public-site='true'] .site-shell main :is(
+  .window,
+  .project-card,
+  .project-feature,
+  .content-panel,
+  .timeline-card,
+  .technology-card,
+  .ai-tool-card,
+  .achievement-card,
+  .certification-card,
+  .contact-card,
+  .testimonial-card
+) {
+  background: linear-gradient(
+    135deg,
+    rgba(8, 18, 34, var(--public-card-opacity, 0.58)),
+    rgba(5, 12, 25, var(--public-card-opacity, 0.58))
+  ) !important;
+}
+
+.public-light-veil {
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+html[data-theme='light'][data-public-site='true'] .public-light-veil {
+  opacity: 0.12;
 }
 
 @keyframes nav-link-enter {

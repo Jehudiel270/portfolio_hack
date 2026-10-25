@@ -36,7 +36,7 @@ const csvSkillReport=ref('');
 const cvFileInput=ref<HTMLInputElement|null>(null);
 const cvExtractedText=ref('');
 const cvFilename=ref('');
-const siteSettings=reactive({visiblePages:{parcours:true,projets:true,competences:true,ia:true,certifications:true,contact:true} as Record<string,boolean>,appointmentUrl:'',cvUrl:'',missionTypes:[] as string[],background:{showImage:true,showAmbient:false,showMaze:false,ambientIntensity:35,mazeIntensity:45,speed:1},contactRetentionDays:365,cinematicIntro:cloneCinematicIntroSettings()});
+const siteSettings=reactive({visiblePages:{parcours:true,projets:true,competences:true,ia:true,certifications:true,contact:true} as Record<string,boolean>,appointmentUrl:'',cvUrl:'',missionTypes:[] as string[],background:{showImage:true,showAmbient:false,showMaze:false,ambientIntensity:35,mazeIntensity:45,speed:1,darkCardOpacity:58},contactRetentionDays:365,cinematicIntro:cloneCinematicIntroSettings()});
 const missionTypesText=ref('');
 const serviceHealth=ref<{database:string;smtp:string;cloudinaryConfigured:boolean;checkedAt:string}|null>(null);
 const activityItems=ref<any[]>([]);
@@ -281,6 +281,7 @@ onMounted(checkSession);
                 <label v-if="siteSettings.background.showAmbient" class="backdrop-range-option"><span>Intensité du halo fixe <strong>{{ siteSettings.background.ambientIntensity }}%</strong></span><input v-model.number="siteSettings.background.ambientIntensity" type="range" min="0" max="100" step="5"></label>
                 <label v-if="siteSettings.background.showMaze" class="backdrop-range-option"><span>Intensité du labyrinthe <strong>{{ siteSettings.background.mazeIntensity }}%</strong></span><input v-model.number="siteSettings.background.mazeIntensity" type="range" min="0" max="100" step="5"></label>
                 <label v-if="siteSettings.background.showMaze" class="backdrop-range-option"><span>Vitesse du labyrinthe <strong>×{{ siteSettings.background.speed.toFixed(1) }}</strong></span><input v-model.number="siteSettings.background.speed" type="range" min="0.5" max="2" step="0.5"></label>
+                <label class="backdrop-range-option"><span>Opacité des cartes en mode sombre <strong>{{ siteSettings.background.darkCardOpacity }}%</strong></span><input v-model.number="siteSettings.background.darkCardOpacity" type="range" min="40" max="85" step="1"><small>Cartes publiques, toutes pages. Valeur par défaut : 58%.</small></label>
               </div>
             </section>
             <CinematicIntroSettingsPanel v-model="siteSettings.cinematicIntro" />
