@@ -56,6 +56,8 @@ const publicBackgroundStyle = computed(() => ({
 useHead(computed(() => ({
   htmlAttrs: {
     'data-public-background-image': publicBackground.value.showImage ? 'on' : 'off',
+    'data-public-site': !isAdminRoute.value ? 'true' : 'false',
+    style: `--public-card-opacity:${publicBackground.value.darkCardOpacity / 100}`,
   },
 })));
 watch(() => route.path, (path, previousPath) => {
@@ -193,6 +195,7 @@ onBeforeUnmount(() => {
     :speed="publicBackground.speed"
     :style="publicBackgroundStyle"
   />
+  <div v-if="!isAdminRoute" class="public-light-veil" aria-hidden="true"></div>
   <div v-if="!isAdminRoute" class="site-scroll-progress" aria-hidden="true"></div>
   <NuxtPage />
 </template>

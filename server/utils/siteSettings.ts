@@ -26,12 +26,19 @@ export async function readSiteSetting<T>(key: string, fallback: T): Promise<T> {
 export async function readPublicSiteSettings(): Promise<PublicSiteSettings> {
   const stored = await readSiteSetting('public', defaultPublicSiteSettings);
   const visiblePages = { ...defaultPublicSiteSettings.visiblePages, ...stored.visiblePages };
+  const darkCardOpacity = Number(stored.background?.darkCardOpacity);
   delete visiblePages.realisations;
   return {
     ...defaultPublicSiteSettings,
     ...stored,
     visiblePages,
-    background: { ...defaultPublicBackgroundSettings, ...stored.background },
+    background: {
+      ...defaultPublicBackgroundSettings,
+      ...stored.background,
+      darkCardOpacity: Number.isInteger(darkCardOpacity)
+        ? Math.min(85, Math.max(40, darkCardOpacity))
+        : defaultPublicBackgroundSettings.darkCardOpacity,
+    },
     // Réglages enregistrés avant cette fonctionnalité : valeurs par défaut ; valeurs invalides : bornées.
     cinematicIntro: sanitizeCinematicIntroSettings(stored.cinematicIntro),
   };

@@ -34,6 +34,7 @@ export interface PublicBackgroundSettings {
   ambientIntensity: number;
   mazeIntensity: number;
   speed: number;
+  darkCardOpacity: number;
 }
 export const defaultPublicBackgroundSettings: PublicBackgroundSettings = {
   showImage: true,
@@ -42,6 +43,7 @@ export const defaultPublicBackgroundSettings: PublicBackgroundSettings = {
   ambientIntensity: 35,
   mazeIntensity: 45,
   speed: 1,
+  darkCardOpacity: 58,
 };
 export interface PublicSiteSettings { visiblePages: Record<string,boolean>; appointmentUrl: string | null; cvUrl: string | null; missionTypes: string[]; background?: PublicBackgroundSettings; cinematicIntro?: CinematicIntroSettings; }
 export interface PortfolioData { profile: Profile; projects: Project[]; journey: JourneyItem[]; educations: Education[]; certifications: Certification[]; achievements: Achievement[]; testimonials: Testimonial[]; skills: Skill[]; technologies: Technology[]; publicSettings?: PublicSiteSettings; configured: boolean; source: 'database'|'demo'|'unavailable'; }
