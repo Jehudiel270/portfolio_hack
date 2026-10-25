@@ -4,6 +4,8 @@ import { useCookie, useSeoMeta } from '#imports';
 import { Activity, ArrowLeft, CheckCircle2, CircleAlert, Code2, Eye, EyeOff, FileText, FolderOpen, GraduationCap, ImagePlus, LayoutDashboard, List, Loader2, LogOut, MessageSquareText, Pencil, Plus, Save, Settings2, ShieldCheck, Sparkles, Trash2, UploadCloud, X } from 'lucide-vue-next';
 import AdminMazeBackdrop from '~/components/AdminMazeBackdrop.vue';
 import AdminAccountsPanel from '~/components/AdminAccountsPanel.vue';
+import CinematicIntroSettingsPanel from '~/components/CinematicIntroSettingsPanel.vue';
+import { cloneCinematicIntroSettings } from '~/types/cinematic-intro';
 import type { Achievement, JourneyItem, Profile, Project, Skill, Technology, TechnologyCatalogItem } from '~/composables/usePortfolioData';
 import { socialNetworks } from '~/composables/socialNetworks';
 import { getAiTypeLabel } from '~/composables/aiCatalog';
@@ -34,7 +36,7 @@ const csvSkillReport=ref('');
 const cvFileInput=ref<HTMLInputElement|null>(null);
 const cvExtractedText=ref('');
 const cvFilename=ref('');
-const siteSettings=reactive({visiblePages:{parcours:true,projets:true,competences:true,ia:true,certifications:true,contact:true} as Record<string,boolean>,appointmentUrl:'',cvUrl:'',missionTypes:[] as string[],background:{showImage:true,showAmbient:false,showMaze:false,ambientIntensity:35,mazeIntensity:45,speed:1},contactRetentionDays:365});
+const siteSettings=reactive({visiblePages:{parcours:true,projets:true,competences:true,ia:true,certifications:true,contact:true} as Record<string,boolean>,appointmentUrl:'',cvUrl:'',missionTypes:[] as string[],background:{showImage:true,showAmbient:false,showMaze:false,ambientIntensity:35,mazeIntensity:45,speed:1},contactRetentionDays:365,cinematicIntro:cloneCinematicIntroSettings()});
 const missionTypesText=ref('');
 const serviceHealth=ref<{database:string;smtp:string;cloudinaryConfigured:boolean;checkedAt:string}|null>(null);
 const activityItems=ref<any[]>([]);
@@ -281,6 +283,7 @@ onMounted(checkSession);
                 <label v-if="siteSettings.background.showMaze" class="backdrop-range-option"><span>Vitesse du labyrinthe <strong>×{{ siteSettings.background.speed.toFixed(1) }}</strong></span><input v-model.number="siteSettings.background.speed" type="range" min="0.5" max="2" step="0.5"></label>
               </div>
             </section>
+            <CinematicIntroSettingsPanel v-model="siteSettings.cinematicIntro" />
             <div v-if="hasPermission('settings.update')" class="field full"><button class="button" type="submit" :disabled="busy"><Save :size="14" /> Enregistrer les réglages</button></div>
             </fieldset>
           </form>
