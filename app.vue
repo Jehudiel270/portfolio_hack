@@ -50,6 +50,8 @@ watch(portfolioError, (error) => {
 });
 let revealObserver: IntersectionObserver | undefined;
 let progressFrame = 0;
+let pointerFrame = 0;
+let pendingPointer: { target: Element; clientX: number; clientY: number } | undefined;
 
 function updateScrollProgress() {
   if (route.path.startsWith('/admin')) return;
@@ -63,37 +65,35 @@ function updateScrollProgress() {
 }
 
 function updateCardSpotlight(event: PointerEvent) {
-  if (route.path.startsWith('/admin')) return;
+  if (route.path.startsWith('/admin') || event.pointerType === 'touch') return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !(event.target instanceof Element)) return;
-  const card = event.target.closest<HTMLElement>(
-    '.site-shell .project-card, .site-shell .project-feature, .site-shell .content-panel, .site-shell .timeline-card, .site-shell .technology-card, .site-shell .ai-tool-card, .site-shell .achievement-card, .site-shell .certification-card, .site-shell .project-gallery-item',
-  );
-  if (!card) return;
+  pendingPointer = { target: event.target, clientX: event.clientX, clientY: event.clientY };
+  if (pointerFrame) return;
+  pointerFrame = window.requestAnimationFrame(() => {
+    pointerFrame = 0;
+    const pointer = pendingPointer;
+    pendingPointer = undefined;
+    if (!pointer) return;
 
-  const bounds = card.getBoundingClientRect();
-  if (!bounds.width || !bounds.height) return;
-  const x = (event.clientX - bounds.left) / bounds.width;
-  const y = (event.clientY - bounds.top) / bounds.height;
-  card.style.setProperty('--pointer-x', `${(x * 100).toFixed(1)}%`);
-  card.style.setProperty('--pointer-y', `${(y * 100).toFixed(1)}%`);
-  card.style.setProperty('--tilt-x', `${((x - 0.5) * 8).toFixed(2)}deg`);
-  card.style.setProperty('--tilt-y', `${((0.5 - y) * 6).toFixed(2)}deg`);
-}
+    const card = pointer.target.closest<HTMLElement>(
+      '.site-shell .project-card, .site-shell .project-feature, .site-shell .content-panel, .site-shell .timeline-card, .site-shell .technology-card, .site-shell .ai-tool-card, .site-shell .achievement-card, .site-shell .certification-card, .site-shell .project-gallery-item',
+    );
+    if (!card) return;
 
-function revealVisibleContent() {
-  for (const target of document.querySelectorAll<HTMLElement>('.scroll-reveal.is-pending')) {
-    const bounds = target.getBoundingClientRect();
-    if (bounds.top >= window.innerHeight || bounds.bottom <= 0) continue;
-    target.classList.remove('is-pending');
-    target.classList.add('is-visible');
-    revealObserver?.unobserve(target);
-  }
+    const bounds = card.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return;
+    const x = (pointer.clientX - bounds.left) / bounds.width;
+    const y = (pointer.clientY - bounds.top) / bounds.height;
+    card.style.setProperty('--pointer-x', `${(x * 100).toFixed(1)}%`);
+    card.style.setProperty('--pointer-y', `${(y * 100).toFixed(1)}%`);
+    card.style.setProperty('--tilt-x', `${((x - 0.5) * 8).toFixed(2)}deg`);
+    card.style.setProperty('--tilt-y', `${((0.5 - y) * 6).toFixed(2)}deg`);
+  });
 }
 
 async function observePageContent() {
   await nextTick();
   revealObserver?.disconnect();
-  window.removeEventListener('scroll', revealVisibleContent);
   if (route.path.startsWith('/admin')) return;
 
   const targets = document.querySelectorAll<HTMLElement>(
@@ -131,8 +131,6 @@ async function observePageContent() {
     }
     revealObserver?.observe(target);
   });
-  window.addEventListener('scroll', revealVisibleContent, { passive: true });
-  revealVisibleContent();
 }
 
 onMounted(() => {
@@ -162,11 +160,11 @@ watch(() => route.path, () => {
 
 onBeforeUnmount(() => {
   revealObserver?.disconnect();
-  window.removeEventListener('scroll', revealVisibleContent);
   window.removeEventListener('scroll', updateScrollProgress);
   window.removeEventListener('resize', updateScrollProgress);
   document.removeEventListener('pointermove', updateCardSpotlight);
   if (progressFrame) window.cancelAnimationFrame(progressFrame);
+  if (pointerFrame) window.cancelAnimationFrame(pointerFrame);
 });
 </script>
 

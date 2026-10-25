@@ -7,7 +7,15 @@ export const admins = pgTable('portfolio_admins', {
   id: serial('id').primaryKey(),
   email: varchar('email', { length: 320 }).notNull().unique(),
   passwordHash: text('password_hash').notNull(),
+  totpSecretCiphertext: text('totp_secret_ciphertext'),
+  totpEnabled: boolean('totp_enabled').notNull().default(false),
+  recoveryCodeHashes: jsonb('recovery_code_hashes').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+export const adminLoginAttempts = pgTable('portfolio_admin_login_attempts', {
+  ipHash: varchar('ip_hash', { length: 64 }).primaryKey(),
+  attempts: integer('attempts').notNull().default(0),
+  windowStartedAt: timestamp('window_started_at', { withTimezone: true }).notNull().defaultNow(),
 });
 export const profiles = pgTable('portfolio_profile', {
   id: integer('id').primaryKey().default(1),

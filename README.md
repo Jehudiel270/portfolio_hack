@@ -11,7 +11,24 @@ Portfolio Nuxt 3 responsive, avec un espace d’administration propriétaire, pe
 
 La commande de développement est compatible avec PowerShell et les shells Unix. Pour fixer le port, utilise `pnpm dev --port 3002`. Sur le même ordinateur, ouvre `http://localhost:<port>` dans Edge ou un autre navigateur ; `0.0.0.0` est l’adresse d’écoute du serveur, pas une adresse de navigation. Pour ouvrir le site depuis un autre appareil du réseau local, utilise l’adresse IP locale de cet ordinateur et autorise Node.js sur le réseau privé Windows si le pare-feu le demande.
 
-Les secrets ne sont jamais envoyés au navigateur. `ADMIN_EMAIL` et `ADMIN_PASSWORD` ne servent qu’au script d’initialisation (`ADMIN_PASSWORD` doit contenir au moins 8 caractères); retirer `ADMIN_PASSWORD` après son exécution. Le cookie de session est HTTP-only, Secure et SameSite=None pour les aperçus HTTPS intégrés.
+Les secrets ne sont jamais envoyés au navigateur. `ADMIN_EMAIL` et `ADMIN_PASSWORD` ne servent qu’au script d’initialisation (`ADMIN_PASSWORD` doit contenir au moins 8 caractères); retirer `ADMIN_PASSWORD` après son exécution. Le cookie de session est HTTP-only, Secure, limité à l’hôte admin et SameSite=Lax.
+
+En développement local, `NUXT_APP_ROLE=all` active les pages publiques et admin. La première connexion admin avec le mot de passe existant impose l’inscription d’une application d’authentification TOTP. Saisis la clé dans une application compatible, confirme avec son code, puis conserve les codes de secours dans un gestionnaire de mots de passe.
+
+## Déployer séparément le site public et l’administration sur Vercel
+
+Le même dépôt sert deux projets Vercel, chacun avec un rôle défini **avant son build**. Le build public ne contient pas les pages admin et bloque `/admin` ainsi que `/api/admin/*`. Le build admin ne contient pas les pages publiques, redirige `/` vers `/admin` et refuse toute autre route. Les API admin exigent toujours une session TOTP vérifiée.
+
+1. Avant la première mise en production avec cette version, mets à jour la base Neon **une seule fois** depuis le dépôt local. Confirme que `DATABASE_URL` pointe vers la base de production voulue, puis lance `pnpm db:migrate`. Cette migration ajoute les champs MFA et le limiteur de connexion sans effacer les comptes ou le contenu. Ne relance pas `pnpm admin:create` : ton compte existant est conservé.
+2. Dans Vercel, importe le même dépôt GitHub comme **deux projets**. Pour les deux, garde la racine du projet à `./`, le preset Nuxt et le build `pnpm build`.
+3. Dans le projet **public**, configure `NUXT_APP_ROLE=public`, l’URL du site public (`NUXT_PUBLIC_SITE_URL`), `DATABASE_URL` et les variables de production nécessaires aux fonctionnalités publiques (SMTP pour le formulaire de contact). Associe à ce projet le domaine public habituel.
+4. Dans le projet **admin**, configure `NUXT_APP_ROLE=admin`, `DATABASE_URL`, `NUXT_PUBLIC_SITE_URL` avec le domaine public, `NUXT_SESSION_PASSWORD` (la clé secrète existante d’au moins 32 caractères) et les autres variables nécessaires aux fonctions d’administration, notamment Cloudinary. Associe un sous-domaine dédié, par exemple `admin.ton-domaine.com`, à ce projet.
+5. Dans le projet Vercel admin, active **Deployment Protection → All Deployments → Vercel Authentication**. Cela ajoute une barrière Vercel aux aperçus et au domaine admin ; connecte-toi avec le compte Vercel autorisé, puis avec le mot de passe admin et le code TOTP. Garde le domaine public uniquement sur le projet public.
+6. Déploie les deux projets. Vérifie que `https://ton-domaine.com/admin` renvoie une 404, que `https://admin.ton-domaine.com/` ouvre la connexion admin, et qu’une API admin sans session répond 401. À la première connexion admin, inscris ton authenticator et enregistre les codes de secours affichés une seule fois.
+
+Les variables Vercel sont propres à chaque projet et doivent être définies pour les environnements **Production, Preview et Development** selon le besoin. La valeur `NUXT_APP_ROLE` est utilisée au build comme à l’exécution : redéploie après l’avoir modifiée. N’ajoute pas de domaine de cookie : la session reste liée à l’hôte admin et ne passe pas au site public.
+
+En cas de perte de l’application d’authentification et des codes de secours, la personne ayant accès à la base peut supprimer l’inscription MFA depuis un poste de confiance : définis `ADMIN_MFA_RESET_EMAIL` et `ADMIN_MFA_RESET_CONFIRM` avec la même adresse admin dans l’environnement local, puis lance `pnpm admin:mfa-reset`. La prochaine connexion par mot de passe imposera une nouvelle inscription TOTP.
 
 Le formulaire de contact n’annonce une réussite que lorsque le message a été accepté par SMTP. Si le serveur, la base ou le stockage ne sont pas configurés, l’interface indique clairement l’indisponibilité au lieu de simuler une action réussie.
 

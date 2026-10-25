@@ -16,7 +16,16 @@ export default defineNuxtConfig({
     },
   },
   modules: [],
+  hooks: {
+    'pages:extend'(pages) {
+      const role = process.env.NUXT_APP_ROLE || (process.env.NODE_ENV === 'development' ? 'all' : 'public');
+      if (role === 'all') return;
+      const isAdminRoute = (path: string) => path === '/admin' || path.startsWith('/admin/');
+      pages.splice(0, pages.length, ...pages.filter((page) => role === 'admin' ? isAdminRoute(page.path) : !isAdminRoute(page.path)));
+    },
+  },
   runtimeConfig: {
+    appRole: process.env.NUXT_APP_ROLE || (process.env.NODE_ENV === 'development' ? 'all' : 'public'),
     sessionPassword: process.env.NUXT_SESSION_PASSWORD || "",
     databaseUrl: process.env.DATABASE_URL || "",
     cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || "",

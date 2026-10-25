@@ -2,6 +2,9 @@ CREATE TABLE IF NOT EXISTS portfolio_admins (
   id serial PRIMARY KEY,
   email varchar(320) NOT NULL UNIQUE,
   password_hash text NOT NULL,
+  totp_secret_ciphertext text,
+  totp_enabled boolean NOT NULL DEFAULT false,
+  recovery_code_hashes jsonb NOT NULL DEFAULT '[]'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS portfolio_profile (

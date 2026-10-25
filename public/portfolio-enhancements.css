@@ -83,6 +83,41 @@ html[data-theme-transition]::view-transition-old(root) {
   transform: rotate(35deg) scale(0.65);
 }
 
+.mfa-secret,
+.mfa-recovery-codes {
+  display: grid;
+  gap: 9px;
+  margin: 18px 0;
+  padding: 13px;
+  border: 1px solid rgba(25, 230, 239, 0.3);
+  border-radius: 7px;
+  background: rgba(5, 13, 31, 0.74);
+}
+
+.mfa-secret span {
+  color: var(--muted);
+  font: 10px var(--mono);
+}
+
+.mfa-secret code,
+.mfa-recovery-codes code {
+  color: var(--cyan);
+  font: 14px var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.mfa-recovery-codes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mfa-manual {
+  margin-bottom: 5px;
+}
+
+.mfa-uri {
+  overflow-wrap: anywhere;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .site-shell:not(.admin-page) .eyebrow::before {
     animation: none;
