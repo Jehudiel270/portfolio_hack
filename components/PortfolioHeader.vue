@@ -18,17 +18,12 @@ let themeTransitionId = 0;
 async function toggleTheme(event: MouseEvent) {
   const nextTheme = theme.value === 'dark' ? 'light' : 'dark';
   const root = document.documentElement;
-  const bounds = (event.currentTarget as HTMLButtonElement).getBoundingClientRect();
-  root.style.setProperty('--theme-origin-x', `${bounds.left + bounds.width / 2}px`);
-  root.style.setProperty('--theme-origin-y', `${bounds.top + bounds.height / 2}px`);
   root.dataset.themeTransition = nextTheme;
   const transitionId = ++themeTransitionId;
 
   const clearTransition = () => {
     if (transitionId === themeTransitionId) {
       delete root.dataset.themeTransition;
-      root.style.removeProperty('--theme-origin-x');
-      root.style.removeProperty('--theme-origin-y');
     }
   };
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
