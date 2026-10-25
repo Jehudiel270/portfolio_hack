@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { normalizeAdminPermissions, resolveAdminPermission } from '../../shared/adminPermissions';
+import { ADMIN_PERMISSION_GROUPS, ADMIN_PERMISSION_KEYS, normalizeAdminPermissions, resolveAdminPermission } from '../../shared/adminPermissions';
+
+test('permission groups expose every supported permission exactly once', () => {
+  const groupedKeys = ADMIN_PERMISSION_GROUPS.flatMap((group) => group.actions.map((action) => action.key));
+  assert.deepEqual([...groupedKeys].sort(), [...ADMIN_PERMISSION_KEYS].sort());
+});
 
 test('admin permission resolution maps content actions precisely', () => {
   assert.equal(resolveAdminPermission('/api/admin/content/projects', 'GET'), 'projects.view');

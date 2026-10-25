@@ -15,7 +15,7 @@ Les secrets ne sont jamais envoyés au navigateur. `ADMIN_EMAIL` et `ADMIN_PASSW
 
 En développement local, `NUXT_APP_ROLE=all` active les pages publiques et admin. La première connexion admin avec le mot de passe existant impose l’inscription d’une application d’authentification TOTP. Saisis la clé dans une application compatible, confirme avec son code, puis conserve les codes de secours dans un gestionnaire de mots de passe.
 
-Le seul super-administrateur est `dossoucarrel@gmail.com`. Après migration, il peut ouvrir **Comptes & permissions** dans le tableau de bord pour créer des administrateurs, leur attribuer des droits précis par section et action, désactiver un compte, changer son mot de passe ou réinitialiser sa 2FA. Les comptes créés n’ont aucun droit par défaut et doivent inscrire leur propre TOTP à la première connexion. Les mots de passe sont hachés avec bcrypt ; les permissions sont contrôlées par les API, pas seulement par l’interface.
+Le seul super-administrateur est `dossoucarrel@gmail.com`. Après migration, il peut ouvrir **Comptes & permissions** dans le tableau de bord pour créer des administrateurs, leur attribuer des droits précis par section et action, ou utiliser **Tout accorder / Tout retirer** pour l’ensemble des permissions ou une section donnée. Il peut aussi désactiver un compte, changer son mot de passe ou réinitialiser sa 2FA. Les comptes créés n’ont aucun droit par défaut et doivent inscrire leur propre TOTP à la première connexion. Les mots de passe sont hachés avec bcrypt ; les permissions sont contrôlées par les API, pas seulement par l’interface.
 
 ## Déployer séparément le site public et l’administration sur Vercel
 
