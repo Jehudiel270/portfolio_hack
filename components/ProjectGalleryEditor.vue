@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { ArrowDown, ArrowUp, CloudUpload, GripVertical, Trash2 } from 'lucide-vue-next';
 import type { ProjectMedia } from '~/composables/usePortfolioData';
 
-const props = defineProps<{ modelValue: ProjectMedia[]; coverUrl?: string | null }>();
+const props = withDefaults(defineProps<{ modelValue: ProjectMedia[]; coverUrl?: string | null; allowUpload?: boolean }>(), { allowUpload: true });
 const emit = defineEmits<{ 'update:modelValue': [value: ProjectMedia[]]; 'update:coverUrl': [url: string]; upload: [index?: number]; 'upload-files': [files: File[]] }>();
 const draggedIndex = ref<number | null>(null);
 const dropTargetIndex = ref<number | null>(null);
@@ -35,6 +35,7 @@ function dropAt(index: number) {
   dropTargetIndex.value = null;
 }
 function acceptDroppedFiles(event: DragEvent) {
+  if (!props.allowUpload) return;
   const files = Array.from(event.dataTransfer?.files || []);
   if (files.length) emit('upload-files', files);
 }
@@ -46,10 +47,10 @@ function acceptDroppedFiles(event: DragEvent) {
       <div><strong>Captures du projet</strong><small>Dépose des images ici, ou fais glisser une capture pour la réordonner.</small></div>
       <div class="gallery-editor-actions">
         <button class="button secondary" type="button" @click="addEmpty">Ajouter une URL</button>
-        <button class="button secondary" type="button" @click="emit('upload')">Téléverser</button>
+        <button v-if="allowUpload" class="button secondary" type="button" @click="emit('upload')">Téléverser</button>
       </div>
     </div>
-    <div class="gallery-dropzone" @dragover.prevent @drop.prevent="acceptDroppedFiles">
+    <div v-if="allowUpload" class="gallery-dropzone" @dragover.prevent @drop.prevent="acceptDroppedFiles">
       <CloudUpload :size="20" />
       <span>Dépose tes images pour les ajouter à la galerie</span>
       <small>JPEG, PNG ou WebP · 8 Mo maximum par image</small>
@@ -65,7 +66,7 @@ function acceptDroppedFiles(event: DragEvent) {
           <button class="button secondary" type="button" :disabled="!media.url || coverUrl === media.url" @click="emit('update:coverUrl', media.url)">Choisir la couverture</button>
           <button class="icon-button" type="button" :disabled="index===0" :aria-label="`Monter la capture ${index+1}`" @click="move(index,-1)"><ArrowUp :size="14" /></button>
           <button class="icon-button" type="button" :disabled="index===modelValue.length-1" :aria-label="`Descendre la capture ${index+1}`" @click="move(index,1)"><ArrowDown :size="14" /></button>
-          <button class="button secondary" type="button" @click="emit('upload',index)">Remplacer l’image</button>
+          <button v-if="allowUpload" class="button secondary" type="button" @click="emit('upload',index)">Remplacer l’image</button>
           <button class="icon-button danger" type="button" :aria-label="`Supprimer la capture ${index+1}`" @click="remove(index)"><Trash2 :size="14" /></button>
         </div>
       </div>

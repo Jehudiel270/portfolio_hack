@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
 
   const db = getDatabase();
   const [admin] = await db.select().from(admins).where(eq(admins.email, input.data.email.toLowerCase())).limit(1);
-  if (!admin || !(await bcrypt.compare(input.data.password, admin.passwordHash))) {
+  if (!admin?.active || !(await bcrypt.compare(input.data.password, admin.passwordHash))) {
     throw createError({ statusCode: 401, statusMessage: 'Connexion refusée. Vérifie tes identifiants et ton code de sécurité.' });
   }
 
@@ -65,6 +65,6 @@ export default defineEventHandler(async (event) => {
 
   await clearAdminAuthAttempts(ipHash);
   const setupPending = !admin.totpEnabled;
-  await createAdminSession(event, admin.id, admin.email, setupPending);
+  await createAdminSession(event, admin.id, admin.email, setupPending, admin.sessionVersion);
   return { authenticated: !setupPending, setupRequired: setupPending, email: admin.email };
 });

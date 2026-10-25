@@ -38,6 +38,6 @@ export default defineEventHandler(async (event) => {
     recoveryCodeHashes: recoveryCodes.map(hashRecoveryCode),
   }).where(eq(admins.id, admin.id));
   await clearAdminAuthAttempts(ipHash);
-  await createAdminSession(event, admin.id, record.email);
+  await createAdminSession(event, admin.id, record.email, false, admin.sessionVersion);
   return { authenticated: true, recoveryCodes };
 });

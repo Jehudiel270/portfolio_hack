@@ -1,10 +1,11 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { eq } from 'drizzle-orm';
-import { createError, deleteCookie, getCookie, getHeader, setCookie, type H3Event } from 'h3';
+import { createError, deleteCookie, getCookie, getHeader, getRequestURL, setCookie, type H3Event } from 'h3';
 import { useRuntimeConfig } from '#imports';
 import { getDatabase } from './database';
 import { admins } from './schema';
+import { normalizeAdminPermissions, resolveAdminPermission, SUPER_ADMIN_EMAIL } from '~/shared/adminPermissions';
 
 const COOKIE = 'carrel_admin_session';
 const CSRF_COOKIE = 'carrel_admin_csrf';
@@ -21,9 +22,9 @@ function signingKey() {
   return createHash('sha256').update(sessionSecret()).digest();
 }
 
-export async function createAdminSession(event: H3Event, adminId: number, email: string, setupPending = false) {
+export async function createAdminSession(event: H3Event, adminId: number, email: string, setupPending = false, sessionVersion = 0) {
   const expiresIn = setupPending ? setupLifetime : lifetime;
-  const token = await new SignJWT({ email, role: 'admin', mfa: setupPending ? 'setup' : 'verified' })
+  const token = await new SignJWT({ email, role: 'admin', mfa: setupPending ? 'setup' : 'verified', sessionVersion })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(String(adminId))
     .setIssuer('carrelfolio')
@@ -52,11 +53,23 @@ async function getSession(event: H3Event) {
   }
   if (payload.role !== 'admin' || !payload.sub || !/^\d+$/u.test(payload.sub)) return null;
   const [admin] = await getDatabase()
-    .select({ id: admins.id, email: admins.email, totpEnabled: admins.totpEnabled })
+    .select({
+      id: admins.id,
+      email: admins.email,
+      role: admins.role,
+      active: admins.active,
+      permissions: admins.permissions,
+      totpEnabled: admins.totpEnabled,
+      sessionVersion: admins.sessionVersion,
+    })
     .from(admins)
     .where(eq(admins.id, Number(payload.sub)))
     .limit(1);
-  return admin ? { admin, payload } : null;
+  return admin?.active && payload.sessionVersion === admin.sessionVersion ? { admin, payload } : null;
+}
+
+function isSuperAdmin(admin: { email: string; role: string }) {
+  return admin.role === 'super_admin' && admin.email.toLowerCase() === SUPER_ADMIN_EMAIL;
 }
 
 export async function getAdminSessionState(event: H3Event) {
@@ -64,7 +77,16 @@ export async function getAdminSessionState(event: H3Event) {
   if (!session) return { authenticated: false, setupRequired: false };
   const authenticated = session.admin.totpEnabled && session.payload.mfa === 'verified';
   const setupRequired = !session.admin.totpEnabled && session.payload.mfa === 'setup';
-  return { authenticated, setupRequired };
+  return {
+    authenticated,
+    setupRequired,
+    ...(authenticated ? {
+      email: session.admin.email,
+      role: isSuperAdmin(session.admin) ? 'super_admin' : 'admin',
+      isSuperAdmin: isSuperAdmin(session.admin),
+      permissions: normalizeAdminPermissions(session.admin.permissions),
+    } : {}),
+  };
 }
 
 export async function getAdmin(event: H3Event) {
@@ -101,6 +123,18 @@ export async function requireAdmin(event: H3Event) {
   const admin = await getAdmin(event);
   if (!admin) throw createError({ statusCode: 401, statusMessage: 'Session administrateur avec double authentification requise.' });
   if (!['GET', 'HEAD', 'OPTIONS'].includes(event.method)) verifyAdminCsrf(event);
+  if (!isSuperAdmin(admin)) {
+    const permission = resolveAdminPermission(getRequestURL(event).pathname, event.method);
+    if (!permission || normalizeAdminPermissions(admin.permissions)[permission] !== true) {
+      throw createError({ statusCode: 403, statusMessage: 'Cette action n’est pas autorisée pour ce compte.' });
+    }
+  }
+  return admin;
+}
+
+export async function requireSuperAdmin(event: H3Event) {
+  const admin = await requireAdmin(event);
+  if (!isSuperAdmin(admin)) throw createError({ statusCode: 403, statusMessage: 'Réservé au super-administrateur.' });
   return admin;
 }
 

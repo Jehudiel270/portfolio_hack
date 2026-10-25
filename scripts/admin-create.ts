@@ -5,24 +5,26 @@ import bcrypt from 'bcryptjs';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq } from 'drizzle-orm';
 import { admins, profiles, projects, journey, achievements, skills, technologies } from '../server/utils/schema';
+import { SUPER_ADMIN_EMAIL } from '../shared/adminPermissions';
 
 const url = process.env.DATABASE_URL || '';
 const email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
 const password = process.env.ADMIN_PASSWORD || '';
 if (!url) throw new Error('DATABASE_URL doit être configurée avant le bootstrap.');
 if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('ADMIN_EMAIL doit contenir une adresse valide.');
+if (email !== SUPER_ADMIN_EMAIL) throw new Error(`ADMIN_EMAIL doit être ${SUPER_ADMIN_EMAIL}, seul super-administrateur autorisé.`);
 if (password.length < 8) throw new Error('ADMIN_PASSWORD doit contenir au moins 8 caractères.');
 const sql = postgres(url, { ssl: 'require', max: 1, connect_timeout: 10, prepare: false });
 const db = drizzle(sql);
 try {
-  for (const name of ['0001_portfolio.sql', '0002_portfolio_content_expansion.sql', '0003_profile_social_links.sql', '0004_education_certifications.sql', '0005_ai_catalog_metadata.sql', '0006_projects_testimonials.sql', '0007_admin_operations.sql', '0008_ai_usage_metadata.sql', '0009_admin_totp.sql']) {
+  for (const name of ['0001_portfolio.sql', '0002_portfolio_content_expansion.sql', '0003_profile_social_links.sql', '0004_education_certifications.sql', '0005_ai_catalog_metadata.sql', '0006_projects_testimonials.sql', '0007_admin_operations.sql', '0008_ai_usage_metadata.sql', '0009_admin_totp.sql', '0010_admin_permissions.sql']) {
     const migration = await readFile(resolve('drizzle', name), 'utf8');
     for (const statement of migration.split(';').map(s => s.trim()).filter(Boolean)) await sql.unsafe(statement);
   }
   const [existing] = await db.select({ id: admins.id }).from(admins).where(eq(admins.email, email)).limit(1);
   if (existing) throw new Error('Ce compte administrateur existe déjà; aucune modification de mot de passe n’a été effectuée.');
   const passwordHash = await bcrypt.hash(password, 12);
-  await db.insert(admins).values({ email, passwordHash });
+  await db.insert(admins).values({ email, passwordHash, role: 'super_admin' });
   await db.insert(profiles).values({ id: 1, name: 'Carrel DOSSO', role: 'Développeur Full Stack', location: 'Bénin', education: 'Étudiant en ABM · HECM', bio: 'Je conçois des expériences web utiles, élégantes et accessibles. Du premier wireframe à la mise en production, j’aime transformer une idée en produit qui fonctionne vraiment.', email: process.env.CONTACT_FALLBACK_TO || email, available: true }).onConflictDoNothing({ target: profiles.id });
   await db.insert(projects).values([
     { title:'Line Laurence',slug:'line-laurence',description:'Site e-commerce de mode, pensé autour d’une expérience mobile fluide.',tags:['Nuxt','Supabase','Tailwind'],year:'2025',featured:true,sortOrder:1 },
