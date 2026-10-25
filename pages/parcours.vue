@@ -4,7 +4,7 @@ import { GraduationCap } from 'lucide-vue-next';
 import { useFetch, useSeoMeta } from '#imports';
 import { demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
 
-useSeoMeta({ title: 'Parcours — Carrel DOSSO', description: 'Le parcours et les expériences de Carrel DOSSO.' });
+useSeoMeta({ title: 'Parcours — Carrel DOSSOU', description: 'Le parcours et les expériences de Carrel DOSSOU.' });
 const { data } = await useFetch<PortfolioData>('/api/portfolio', { default: () => demoPortfolio });
 const portfolio = computed(() => data.value || demoPortfolio);
 const journey = computed(() => [...portfolio.value.journey].sort((a, b) => a.sortOrder - b.sortOrder));

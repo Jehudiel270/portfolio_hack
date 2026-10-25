@@ -4,22 +4,30 @@ import { ArrowLeft, ArrowUpRight, ExternalLink, Github } from 'lucide-vue-next';
 import { createError, useFetch, useRoute, useSeoMeta } from '#imports';
 import { demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
 import TechnologyIcon from '~/components/TechnologyIcon.vue';
+import { usePublicSiteUrl } from '~/composables/usePublicSiteUrl';
 
 const route = useRoute();
+const siteUrl = usePublicSiteUrl();
+const defaultSocialImage = new URL('/images/social-preview.jpg', siteUrl).href;
 const { data } = await useFetch<PortfolioData>('/api/portfolio', { default: () => demoPortfolio });
 const portfolio = computed(() => data.value || demoPortfolio);
 const project = computed(() => portfolio.value.projects.find((item) => item.slug === route.params.slug));
+const projectSocialImage = computed(() => {
+  const imageUrl = project.value?.imageUrl;
+  return imageUrl ? new URL(imageUrl, siteUrl).href : defaultSocialImage;
+});
 
 if (!project.value) {
   throw createError({ statusCode: 404, statusMessage: 'Projet introuvable' });
 }
 
 useSeoMeta({
-  title: () => `${project.value?.title || 'Projet'} — Carrel DOSSO`,
-  description: () => project.value?.description || 'Étude de cas d’un projet de Carrel DOSSO.',
-  ogTitle: () => `${project.value?.title || 'Projet'} — Carrel DOSSO`,
-  ogDescription: () => project.value?.description || 'Étude de cas d’un projet de Carrel DOSSO.',
-  ogImage: () => project.value?.imageUrl || undefined,
+  title: () => `${project.value?.title || 'Projet'} — Carrel DOSSOU`,
+  description: () => project.value?.description || 'Étude de cas d’un projet de Carrel DOSSOU.',
+  ogTitle: () => `${project.value?.title || 'Projet'} — Carrel DOSSOU`,
+  ogDescription: () => project.value?.description || 'Étude de cas d’un projet de Carrel DOSSOU.',
+  ogImage: () => projectSocialImage.value,
+  twitterImage: () => projectSocialImage.value,
 });
 </script>
 

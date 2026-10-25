@@ -5,7 +5,7 @@ import { getDatabase, databaseIsConfigured } from '~/server/utils/database';
 import { pageViews } from '~/server/utils/schema';
 
 const schema = z.object({ path: z.string().max(120) });
-const publicPaths = new Set(['/', '/parcours', '/projets', '/competences', '/ia', '/realisations', '/certifications', '/contact', '/confidentialite']);
+const publicPaths = new Set(['/', '/parcours', '/projets', '/competences', '/ia', '/certifications', '/contact', '/confidentialite']);
 
 export default defineEventHandler(async (event) => {
   if (!databaseIsConfigured()) return { recorded: false };

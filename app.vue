@@ -1,11 +1,30 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue';
-import { useFetch, useHead, useRoute } from '#imports';
+import { useFetch, useHead, useRoute, useSeoMeta } from '#imports';
 import AdminMazeBackdrop from '~/components/AdminMazeBackdrop.vue';
+import { usePublicSiteUrl } from '~/composables/usePublicSiteUrl';
 import { defaultPublicBackgroundSettings, demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
 
 const route = useRoute();
 const isAdminRoute = computed(() => route.path.startsWith('/admin'));
+const siteUrl = usePublicSiteUrl();
+const socialImage = new URL('/images/social-preview.jpg', siteUrl).href;
+useSeoMeta({
+  title: 'Carrel DOSSOU — Développeur Full Stack',
+  author: 'Carrel DOSSOU',
+  description: 'Portfolio de Carrel DOSSOU, développeur Full Stack au Bénin. Projets, parcours et compétences.',
+  ogTitle: 'Carrel DOSSOU — Développeur Full Stack',
+  ogDescription: 'Portfolio de Carrel DOSSOU, développeur Full Stack au Bénin. Projets, parcours et compétences.',
+  ogType: 'website',
+  ogSiteName: 'Carrel DOSSOU',
+  ogImage: socialImage,
+  ogImageAlt: 'Portfolio de Carrel DOSSOU',
+  twitterCard: 'summary_large_image',
+  twitterTitle: 'Carrel DOSSOU — Développeur Full Stack',
+  twitterDescription: 'Portfolio de Carrel DOSSOU, développeur Full Stack au Bénin. Projets, parcours et compétences.',
+  twitterImage: socialImage,
+  twitterImageAlt: 'Portfolio de Carrel DOSSOU',
+});
 const { data: portfolioData, error: portfolioError, refresh: refreshPortfolio } = await useFetch<PortfolioData>('/api/portfolio', {
   default: () => demoPortfolio,
   immediate: !isAdminRoute.value,

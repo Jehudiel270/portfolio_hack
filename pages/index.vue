@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useFetch, useRuntimeConfig, useSeoMeta } from '#imports';
+import { useFetch, useSeoMeta } from '#imports';
 import { Activity, ArrowRight, ArrowUpRight, Award, BriefcaseBusiness, Check, Code2, GraduationCap, Mail, MapPin, Sparkles, Terminal, Workflow } from 'lucide-vue-next';
 import ProjectCard from '~/components/ProjectCard.vue';
 import TechnologyIcon from '~/components/TechnologyIcon.vue';
 import { demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
 import { getSocialNetwork, resolveSocialLinks } from '~/composables/socialNetworks';
 import { getAiTypeLabel } from '~/composables/aiCatalog';
+import { usePublicSiteUrl } from '~/composables/usePublicSiteUrl';
 
-const siteUrl = String(useRuntimeConfig().public.siteUrl || '');
-useSeoMeta({ title: 'Carrel DOSSO — Développeur Full Stack', description: 'Portfolio de Carrel DOSSO, développeur Full Stack au Bénin. Projets, parcours et compétences.', ogTitle: 'Carrel DOSSO — Développeur Full Stack', ogDescription: 'Portfolio de Carrel DOSSO, développeur Full Stack au Bénin. Projets, parcours et compétences.', ogUrl: siteUrl || undefined });
+const siteUrl = usePublicSiteUrl();
+useSeoMeta({ title: 'Carrel DOSSOU — Développeur Full Stack', description: 'Portfolio de Carrel DOSSOU, développeur Full Stack au Bénin. Projets, parcours et compétences.', ogTitle: 'Carrel DOSSOU — Développeur Full Stack', ogDescription: 'Portfolio de Carrel DOSSOU, développeur Full Stack au Bénin. Projets, parcours et compétences.', ogUrl: siteUrl || undefined });
 const { data } = await useFetch<PortfolioData>('/api/portfolio', { default: () => demoPortfolio });
 const portfolio = computed(() => data.value || demoPortfolio);
 const profile = computed(() => portfolio.value.profile);
@@ -35,7 +36,7 @@ function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoVi
           <div class="info-body">
             <div v-if="profile.avatarUrl" class="profile-identity"><img :src="profile.avatarUrl" :alt="`Portrait de ${profile.name}`"><span><strong>{{ profile.name }}</strong><small>{{ profile.role }}</small></span></div>
             <div class="info-row"><span>Nom</span><span>: {{ profile.name }}</span></div><div class="info-row"><span>Poste</span><span>: {{ profile.role }}</span></div><div class="info-row"><span>Localisation</span><span>: {{ profile.location }}</span></div><div class="info-row"><span>Formation</span><span>: {{ profile.education }}</span></div><div class="info-row"><span>Statut</span><span>: {{ profile.available ? 'Ouvert aux opportunités' : 'En mission' }}</span></div>
-            <div class="file-nav"><a href="#accueil" @click.prevent="scrollToSection('accueil')"><span class="file-icon">▱</span>/accueil</a><a href="#apropos"><span class="file-icon">▱</span>/a-propos</a><a href="#projets"><span class="file-icon">▱</span>/projets</a><a href="#competences"><span class="file-icon">▱</span>/competences</a><a href="#realisations"><span class="file-icon">▱</span>/realisations</a><a href="#contact"><span class="file-icon">▱</span>/contact</a></div>
+            <div class="file-nav"><a href="#accueil" @click.prevent="scrollToSection('accueil')"><span class="file-icon">▱</span>/accueil</a><a href="#apropos"><span class="file-icon">▱</span>/a-propos</a><a href="#projets"><span class="file-icon">▱</span>/projets</a><a href="#competences"><span class="file-icon">▱</span>/competences</a><a href="#contact"><span class="file-icon">▱</span>/contact</a></div>
             <p class="terminal-note">// Toujours apprendre,<br>// toujours créer.</p>
           </div>
         </WindowPanel>
@@ -103,16 +104,6 @@ function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoVi
             <Award v-else class="certification-icon" :size="27" />
             <div class="certification-copy"><span class="mono certification-issuer">{{ item.issuer }}</span><h3>{{ item.title }}</h3><p v-if="item.issuedAt" class="date">Obtenue : {{ item.issuedAt }}</p></div>
           </article>
-        </div>
-      </section>
-      <section id="realisations" class="section">
-        <div class="section-head"><div><div class="eyebrow">06 / Repères</div><h2>Réalisations <span class="gradient-text">marquantes</span></h2></div><p class="section-sub">// Étapes et accomplissements</p></div>
-        <div class="achievement-grid">
-          <article v-for="item in portfolio.achievements" :key="item.title" class="window achievement-card">
-            <div class="achievement-icon"><Sparkles :size="19" /></div>
-            <div><span class="date">{{ item.date || 'Réalisé' }}</span><h3>{{ item.title }}</h3><p>{{ item.description }}</p></div>
-          </article>
-          <div v-if="!portfolio.achievements.length" class="window achievement-empty muted">Aucune réalisation n’est présentée pour le moment.</div>
         </div>
       </section>
       <section v-if="portfolio.testimonials.length" class="section">

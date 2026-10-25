@@ -4,7 +4,7 @@ import { useFetch, useRoute, useSeoMeta } from '#imports';
 import type { Project } from '~/composables/usePortfolioData';
 import TechnologyIcon from '~/components/TechnologyIcon.vue';
 
-useSeoMeta({ title: 'Aperçu privé du projet — Carrel DOSSO', robots: 'noindex, nofollow' });
+useSeoMeta({ title: 'Aperçu privé du projet — Carrel DOSSOU', robots: 'noindex, nofollow' });
 const route = useRoute();
 const { data: project, error } = await useFetch<Project>(`/api/admin/projects/${encodeURIComponent(String(route.params.slug))}/preview`);
 const gallery = computed(() => [...(project.value?.gallery || [])].sort((a, b) => a.sortOrder - b.sortOrder));

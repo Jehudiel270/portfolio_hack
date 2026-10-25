@@ -6,7 +6,10 @@ export default defineNuxtConfig({
   app: {
     pageTransition: { name: 'route', mode: 'out-in' },
     head: {
+      title: 'Carrel DOSSOU — Développeur Full Stack',
+      htmlAttrs: { lang: 'fr' },
       link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/brandmark.svg' },
         { rel: 'stylesheet', href: '/portfolio.css' },
         { rel: 'stylesheet', href: '/portfolio-enhancements.css' },
       ],

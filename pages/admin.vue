@@ -6,7 +6,7 @@ import AdminMazeBackdrop from '~/components/AdminMazeBackdrop.vue';
 import type { Achievement, JourneyItem, Profile, Project, Skill, Technology, TechnologyCatalogItem } from '~/composables/usePortfolioData';
 import { socialNetworks } from '~/composables/socialNetworks';
 import { getAiTypeLabel } from '~/composables/aiCatalog';
-useSeoMeta({ title: 'Administration — Carrel DOSSO', robots: 'noindex, nofollow' });
+useSeoMeta({ title: 'Administration — Carrel DOSSOU', robots: 'noindex, nofollow' });
 type Resource = 'projects'|'journey'|'educations'|'certifications'|'achievements'|'testimonials'|'skills'|'technologies';
 const tabs: {id:string,label:string,icon:any}[]=[{id:'overview',label:'Vue d’ensemble',icon:LayoutDashboard},{id:'projects',label:'Projets',icon:Code2},{id:'journey',label:'Expériences & parcours',icon:Activity},{id:'educations',label:'Formations & diplômes',icon:GraduationCap},{id:'certifications',label:'Certifications',icon:ShieldCheck},{id:'achievements',label:'Réalisations',icon:Activity},{id:'testimonials',label:'Témoignages',icon:MessageSquareText},{id:'skills',label:'Compétences',icon:ShieldCheck},{id:'technologies',label:'Technologies',icon:Settings2},{id:'ai',label:'IA & modèles',icon:Sparkles},{id:'cv',label:'Importer un CV',icon:FileText},{id:'profile',label:'Profil & image',icon:ImagePlus},{id:'messages',label:'Messages',icon:MessageSquareText},{id:'settings',label:'Réglages du site',icon:Settings2},{id:'analytics',label:'Statistiques',icon:Activity},{id:'activity',label:'Journal admin',icon:FileText}];
 const csrfCookie=useCookie<string|null>('carrel_admin_csrf');const csrfHeaders=()=>({'x-admin-csrf':csrfCookie.value||''});
@@ -28,7 +28,7 @@ const csvSkillReport=ref('');
 const cvFileInput=ref<HTMLInputElement|null>(null);
 const cvExtractedText=ref('');
 const cvFilename=ref('');
-const siteSettings=reactive({visiblePages:{parcours:true,projets:true,competences:true,ia:true,realisations:true,certifications:true,contact:true} as Record<string,boolean>,appointmentUrl:'',cvUrl:'',missionTypes:[] as string[],background:{showImage:true,showAmbient:false,showMaze:false,ambientIntensity:35,mazeIntensity:45,speed:1},contactRetentionDays:365});
+const siteSettings=reactive({visiblePages:{parcours:true,projets:true,competences:true,ia:true,certifications:true,contact:true} as Record<string,boolean>,appointmentUrl:'',cvUrl:'',missionTypes:[] as string[],background:{showImage:true,showAmbient:false,showMaze:false,ambientIntensity:35,mazeIntensity:45,speed:1},contactRetentionDays:365});
 const missionTypesText=ref('');
 const serviceHealth=ref<{database:string;smtp:string;cloudinaryConfigured:boolean;checkedAt:string}|null>(null);
 const activityItems=ref<any[]>([]);
@@ -39,7 +39,7 @@ const localTechnologyCatalog:TechnologyCatalogItem[]=[
   {name:'JavaScript',icon:'logos:javascript',category:'Langages'},{name:'TypeScript',icon:'logos:typescript-icon',category:'Langages'},{name:'Vue.js',icon:'logos:vue',category:'Frameworks'},{name:'Nuxt',icon:'logos:nuxt-icon',category:'Frameworks'},{name:'React',icon:'logos:react',category:'Frameworks'},{name:'Node.js',icon:'logos:nodejs-icon',category:'Runtimes & API'},{name:'Python',icon:'logos:python',category:'Langages'},{name:'HTML',icon:'logos:html-5',category:'Langages'},{name:'CSS',icon:'logos:css-3',category:'Langages'},{name:'Tailwind CSS',icon:'logos:tailwindcss-icon',category:'Frameworks'},{name:'PostgreSQL',icon:'logos:postgresql',category:'Bases de données'},{name:'Docker',icon:'logos:docker-icon',category:'Outils & Cloud'},{name:'GitHub',icon:'logos:github-icon',category:'Outils & Cloud'},{name:'Figma',icon:'logos:figma',category:'Outils & Cloud'},{name:'OpenAI',icon:'logos:openai-icon',category:'IA'},{name:'Anthropic',icon:'logos:anthropic-icon',category:'IA'},{name:'Google Gemini',icon:'logos:google-gemini-icon',category:'IA'},{name:'Mistral AI',icon:'logos:mistral-ai-icon',category:'IA'},{name:'GitHub Copilot',icon:'logos:github-copilot',category:'IA'},{name:'Hugging Face',icon:'logos:hugging-face-icon',category:'IA'},
 ];
 const technologyCatalog=ref<TechnologyCatalogItem[]>([]);const technologyCatalogSource=ref('');const technologyCatalogWarning=ref('');const technologyCatalogLoading=ref(false);const technologyCatalogLoaded=ref(false);
-const immersiveMode=ref(false);const projectViewMode=ref<'folders'|'list'|'windows'>('folders');
+const immersiveMode=ref(false);const projectViewMode=ref<'folders'|'list'|'document'>('folders');
 const showBackdropControls=ref(false);const adminBackdropPreferences=useCookie<{showImage:boolean;showAmbient:boolean;showMaze:boolean;ambientIntensity:number;mazeIntensity:number;speed:number}>('carrel-admin-backdrop',{default:()=>({showImage:true,showAmbient:true,showMaze:true,ambientIntensity:65,mazeIntensity:72,speed:1}),maxAge:60*60*24*365,sameSite:'lax'});
 const adminBackdropStyle=computed(()=>({'--admin-ambient-intensity':String(adminBackdropPreferences.value.ambientIntensity/100),'--admin-maze-intensity':String(adminBackdropPreferences.value.mazeIntensity/100)}));
 function resetAdminBackdrop(){adminBackdropPreferences.value={showImage:true,showAmbient:true,showMaze:true,ambientIntensity:65,mazeIntensity:72,speed:1}}
@@ -156,11 +156,11 @@ onMounted(checkSession);
           </section>
           <p class="muted">{{ tableTitle }} · {{ resourceRows.length }} élément(s) · utilise les flèches pour l’ordre</p>
           <div v-if="activeTab==='projects'" class="project-view-toolbar" aria-label="Mode d’affichage des projets">
-            <span>{{ resourceRows.length }} dossiers projet</span>
+            <span>{{ resourceRows.length }} projets</span>
             <div>
               <button :class="{ selected: projectViewMode==='folders' }" type="button" :aria-pressed="projectViewMode==='folders'" @click="projectViewMode='folders'"><FolderOpen :size="15" /> Dossiers</button>
               <button :class="{ selected: projectViewMode==='list' }" type="button" :aria-pressed="projectViewMode==='list'" @click="projectViewMode='list'"><List :size="15" /> Liste</button>
-              <button :class="{ selected: projectViewMode==='windows' }" type="button" :aria-pressed="projectViewMode==='windows'" @click="projectViewMode='windows'"><FolderOpen :size="15" /> Windows</button>
+              <button :class="{ selected: projectViewMode==='document' }" type="button" :aria-pressed="projectViewMode==='document'" @click="projectViewMode='document'"><FileText :size="15" /> Documents</button>
             </div>
           </div>
           <div v-if="activeTab==='projects'&&resourceRows.length&&projectViewMode==='folders'" class="project-folder-grid">
@@ -194,22 +194,25 @@ onMounted(checkSession);
               <div class="admin-actions"><button class="icon-button" type="button" :aria-label="`Modifier ${item.title}`" @click="openEditor('projects',item)"><Pencil :size="14" /></button><button class="icon-button danger" type="button" :aria-label="`Supprimer ${item.title}`" @click="deleteRecord('projects',item)"><Trash2 :size="14" /></button></div>
             </article>
           </div>
-          <div v-else-if="activeTab==='projects'&&resourceRows.length&&projectViewMode==='windows'" class="windows-folder-grid">
-            <article v-for="item in pageRows" :key="item.id" class="windows-project-folder">
-              <div class="windows-folder-shape">
-                <span class="windows-folder-tab" aria-hidden="true"></span>
-                <span :class="['project-publish-state',item.publicationStatus==='published'&&(!item.publishAt||new Date(item.publishAt)<=new Date())?'published':'draft']">{{ item.publicationStatus==='published'&&(!item.publishAt||new Date(item.publishAt)<=new Date())?'Publié':'Brouillon' }}</span>
-                <div class="windows-folder-body">
-                  <div class="windows-folder-cover">
-                    <img v-if="item.imageUrl" :src="item.imageUrl" :alt="`Aperçu de ${item.title}`" loading="lazy">
-                    <div v-else class="project-folder-placeholder"><Code2 :size="28" /><span>APERÇU À AJOUTER</span></div>
-                  </div>
-                  <div class="windows-folder-label"><strong>{{ item.title }}</strong><span>{{ item.year||'Portfolio' }} · {{ item.projectType||'Projet' }}</span></div>
+          <div v-else-if="activeTab==='projects'&&resourceRows.length&&projectViewMode==='document'" class="project-document-grid">
+            <article v-for="(item,index) in pageRows" :key="item.id" class="project-document-window">
+              <header class="project-document-titlebar">
+                <span><FileText :size="14" /> {{ item.slug||'projet' }}.md</span>
+                <div class="window-controls" aria-hidden="true"><i></i><i></i><i></i></div>
+              </header>
+              <div class="project-document-page">
+                <div class="project-document-heading">
+                  <div><span class="project-document-kicker">{{ item.projectType||'PROJET' }} · {{ item.year||'PORTFOLIO' }}</span><h3>{{ item.title }}</h3></div>
+                  <span :class="['project-publish-state',item.publicationStatus==='published'&&(!item.publishAt||new Date(item.publishAt)<=new Date())?'published':'draft']">{{ item.publicationStatus==='published'&&(!item.publishAt||new Date(item.publishAt)<=new Date())?'Publié':'Brouillon' }}</span>
                 </div>
-              </div>
-              <div class="windows-project-folder-copy">
-                <p>{{ item.description||'Ajoute une description pour présenter ce projet.' }}</p>
-                <div class="admin-actions"><button class="icon-button" type="button" :aria-label="`Modifier ${item.title}`" @click="openEditor('projects',item)"><Pencil :size="14" /></button><button class="icon-button danger" type="button" :aria-label="`Supprimer ${item.title}`" @click="deleteRecord('projects',item)"><Trash2 :size="14" /></button></div>
+                <img v-if="item.imageUrl" class="project-document-cover" :src="item.imageUrl" :alt="`Aperçu de ${item.title}`" loading="lazy">
+                <div v-else class="project-document-placeholder"><Code2 :size="24" /><span>Aucun aperçu disponible</span></div>
+                <p class="project-document-description">{{ item.description||'Ajoute une description pour présenter ce projet.' }}</p>
+                <div class="project-document-footer">
+                  <span class="project-document-tags">{{ Array.isArray(item.tags)?item.tags.slice(0,4).join(' · '):'' }}</span>
+                  <span class="project-document-order">{{ String((activePage-1)*pageSize+index+1).padStart(2,'0') }}</span>
+                  <div class="admin-actions"><button class="icon-button" type="button" :aria-label="`Modifier ${item.title}`" @click="openEditor('projects',item)"><Pencil :size="14" /></button><button class="icon-button danger" type="button" :aria-label="`Supprimer ${item.title}`" @click="deleteRecord('projects',item)"><Trash2 :size="14" /></button></div>
+                </div>
               </div>
             </article>
           </div>
@@ -231,7 +234,7 @@ onMounted(checkSession);
         <template v-else-if="activeTab==='settings'">
           <p class="muted">Réglages éditoriaux et confidentialité. Les pages décochées disparaissent du menu public, sans supprimer leurs contenus.</p>
           <form class="admin-form" @submit.prevent="saveSiteSettings">
-            <div class="field full"><label>Pages visibles dans la navigation publique</label><div class="page-visibility-options"><label v-for="page in [{id:'parcours',label:'Parcours'},{id:'projets',label:'Projets'},{id:'competences',label:'Compétences'},{id:'ia',label:'IA'},{id:'realisations',label:'Réalisations'},{id:'certifications',label:'Certifications'},{id:'contact',label:'Contact'}]" :key="page.id"><input v-model="siteSettings.visiblePages[page.id]" type="checkbox">{{ page.label }}</label></div><small class="muted">L’accueil reste toujours accessible.</small></div>
+            <div class="field full"><label>Pages visibles dans la navigation publique</label><div class="page-visibility-options"><label v-for="page in [{id:'parcours',label:'Parcours'},{id:'projets',label:'Projets'},{id:'competences',label:'Compétences'},{id:'ia',label:'IA'},{id:'certifications',label:'Certifications'},{id:'contact',label:'Contact'}]" :key="page.id"><input v-model="siteSettings.visiblePages[page.id]" type="checkbox">{{ page.label }}</label></div><small class="muted">L’accueil reste toujours accessible.</small></div>
             <div class="field"><label>URL du CV PDF public</label><input v-model="siteSettings.cvUrl" type="url" placeholder="https://…"></div>
             <div class="field"><label>Lien de prise de rendez-vous</label><input v-model="siteSettings.appointmentUrl" type="url" placeholder="https://…"></div>
             <div class="field full"><label>Types de mission affichés (séparés par des virgules)</label><input v-model="missionTypesText" placeholder="Stage, freelance, emploi"></div>

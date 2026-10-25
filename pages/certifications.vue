@@ -5,8 +5,8 @@ import { useFetch, useSeoMeta } from '#imports';
 import { demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
 
 useSeoMeta({
-  title: 'Certifications — Carrel DOSSO',
-  description: 'Certifications professionnelles et attestations vérifiables présentées par Carrel DOSSO.',
+  title: 'Certifications — Carrel DOSSOU',
+  description: 'Certifications professionnelles et attestations vérifiables présentées par Carrel DOSSOU.',
 });
 
 const { data } = await useFetch<PortfolioData>('/api/portfolio', { default: () => demoPortfolio });

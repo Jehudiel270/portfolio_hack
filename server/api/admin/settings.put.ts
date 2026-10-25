@@ -26,10 +26,12 @@ export default defineEventHandler(async (event) => {
   await requireAdmin(event);
   const parsed = schema.safeParse(await readBody(event));
   if (!parsed.success) throw createError({ statusCode: 400, statusMessage: 'Paramètres invalides.', message: 'Vérifie les durées, liens et options de visibilité.' });
+  const visiblePages = { ...defaultPublicSiteSettings.visiblePages, ...parsed.data.public.visiblePages };
+  delete visiblePages.realisations;
   const publicSettings = {
     ...defaultPublicSiteSettings,
     ...parsed.data.public,
-    visiblePages: { ...defaultPublicSiteSettings.visiblePages, ...parsed.data.public.visiblePages },
+    visiblePages,
     appointmentUrl: parsed.data.public.appointmentUrl || null,
     cvUrl: parsed.data.public.cvUrl || null,
     background: { ...defaultPublicBackgroundSettings, ...parsed.data.public.background },

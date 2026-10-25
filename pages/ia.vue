@@ -8,8 +8,8 @@ import { aiAccessModeLabels, aiTypeLabels } from '~/composables/aiCatalog';
 import { filterAiTools } from '~/composables/aiFilters';
 
 useSeoMeta({
-  title: 'Intelligence artificielle — Carrel DOSSO',
-  description: 'Outils, modèles et technologies d’intelligence artificielle présentés dans le portfolio de Carrel DOSSO.',
+  title: 'Intelligence artificielle — Carrel DOSSOU',
+  description: 'Outils, modèles et technologies d’intelligence artificielle présentés dans le portfolio de Carrel DOSSOU.',
 });
 const { data } = await useFetch<PortfolioData>('/api/portfolio', { default: () => demoPortfolio });
 const portfolio = computed(() => data.value || demoPortfolio);

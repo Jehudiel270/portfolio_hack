@@ -5,7 +5,7 @@ import { useFetch, useSeoMeta } from '#imports';
 import TechnologyIcon from '~/components/TechnologyIcon.vue';
 import { demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
 
-useSeoMeta({ title: 'Compétences — Carrel DOSSO', description: 'Technologies et compétences de Carrel DOSSO.' });
+useSeoMeta({ title: 'Compétences — Carrel DOSSOU', description: 'Technologies et compétences de Carrel DOSSOU.' });
 const { data } = await useFetch<PortfolioData>('/api/portfolio', { default: () => demoPortfolio });
 const portfolio = computed(() => data.value || demoPortfolio);
 const skills = computed(() => [...portfolio.value.skills].sort((a, b) => a.sortOrder - b.sortOrder));

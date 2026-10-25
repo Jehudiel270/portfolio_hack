@@ -1,13 +1,12 @@
 import { createError, defineEventHandler, getRequestURL } from 'h3';
 import { useRuntimeConfig } from '#imports';
-import { defaultPublicSiteSettings, readSiteSetting } from '~/server/utils/siteSettings';
+import { readPublicSiteSettings } from '~/server/utils/siteSettings';
 
 const pageByPrefix: Record<string, string> = {
   parcours: 'parcours',
   projets: 'projets',
   competences: 'competences',
   ia: 'ia',
-  realisations: 'realisations',
   certifications: 'certifications',
   contact: 'contact',
 };
@@ -18,7 +17,7 @@ export default defineEventHandler(async (event) => {
   const page = pageByPrefix[pathname.split('/')[1] || ''];
   if (!page || !useRuntimeConfig().databaseUrl) return;
   try {
-    const settings = await readSiteSetting('public', defaultPublicSiteSettings);
+    const settings = await readPublicSiteSettings();
     if (settings.visiblePages[page] === false) throw createError({ statusCode: 404, statusMessage: 'Cette page n’est pas publiée.' });
   } catch (error) {
     if (error && typeof error === 'object' && 'statusCode' in error && error.statusCode === 404) throw error;

@@ -7,8 +7,8 @@ import { getSocialNetwork, resolveSocialLinks } from '~/composables/socialNetwor
 import { demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
 
 useSeoMeta({
-  title: 'Contact — Carrel DOSSO',
-  description: 'Contacter Carrel DOSSO pour un projet, une collaboration ou une question.',
+  title: 'Contact — Carrel DOSSOU',
+  description: 'Contacter Carrel DOSSOU pour un projet, une collaboration ou une question.',
 });
 
 const { data } = await useFetch<PortfolioData>('/api/portfolio', { default: () => demoPortfolio });

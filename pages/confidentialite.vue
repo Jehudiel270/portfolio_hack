@@ -3,7 +3,7 @@ import { useFetch, useSeoMeta } from '#imports';
 import { demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
 
 useSeoMeta({
-  title: 'Confidentialité — Carrel DOSSO',
+  title: 'Confidentialité — Carrel DOSSOU',
   description: 'Informations sur les données du formulaire de contact et les statistiques de consultation du portfolio.',
   robots: 'index, follow',
 });

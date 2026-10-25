@@ -5,7 +5,7 @@ import ProjectCard from '~/components/ProjectCard.vue';
 import { filterProjects } from '~/composables/projectFilters';
 import { demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
 
-useSeoMeta({ title: 'Projets — Carrel DOSSO', description: 'Projets et études de cas de Carrel DOSSO.' });
+useSeoMeta({ title: 'Projets — Carrel DOSSOU', description: 'Projets et études de cas de Carrel DOSSOU.' });
 const route = useRoute();
 const router = useRouter();
 const { data } = await useFetch<PortfolioData>('/api/portfolio', { default: () => demoPortfolio });
