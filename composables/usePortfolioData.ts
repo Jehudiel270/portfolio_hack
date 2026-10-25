@@ -1,3 +1,4 @@
+import type { CinematicIntroSettings } from '~/types/cinematic-intro';
 import type { SocialLink } from '~/composables/socialNetworks';
 
 export interface Profile {
@@ -42,7 +43,7 @@ export const defaultPublicBackgroundSettings: PublicBackgroundSettings = {
   mazeIntensity: 45,
   speed: 1,
 };
-export interface PublicSiteSettings { visiblePages: Record<string,boolean>; appointmentUrl: string | null; cvUrl: string | null; missionTypes: string[]; background?: PublicBackgroundSettings; }
+export interface PublicSiteSettings { visiblePages: Record<string,boolean>; appointmentUrl: string | null; cvUrl: string | null; missionTypes: string[]; background?: PublicBackgroundSettings; cinematicIntro?: CinematicIntroSettings; }
 export interface PortfolioData { profile: Profile; projects: Project[]; journey: JourneyItem[]; educations: Education[]; certifications: Certification[]; achievements: Achievement[]; testimonials: Testimonial[]; skills: Skill[]; technologies: Technology[]; publicSettings?: PublicSiteSettings; configured: boolean; source: 'database'|'demo'|'unavailable'; }
 export const demoPortfolio: PortfolioData = {
   configured: false,

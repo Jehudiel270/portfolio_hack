@@ -2,7 +2,9 @@ import { createError, defineEventHandler, readBody } from 'h3';
 import { z } from 'zod';
 import { defaultPublicBackgroundSettings } from '~/composables/usePortfolioData';
 import { requireAdmin } from '~/server/utils/auth';
-import { defaultPublicSiteSettings, readSiteSetting, writeSiteSetting } from '~/server/utils/siteSettings';
+import { cinematicIntroSchema } from '~/server/utils/cinematicIntro';
+import { defaultPublicSiteSettings, readPublicSiteSettings, readSiteSetting, writeSiteSetting } from '~/server/utils/siteSettings';
+import { sanitizeCinematicIntroSettings } from '~/types/cinematic-intro';
 
 const schema = z.object({
   public: z.object({
@@ -18,6 +20,7 @@ const schema = z.object({
       mazeIntensity: z.coerce.number().min(0).max(100),
       speed: z.coerce.number().min(0.5).max(2),
     }).optional(),
+    cinematicIntro: cinematicIntroSchema.optional(),
   }),
   contactRetentionDays: z.coerce.number().int().min(30).max(3650),
 });
@@ -35,6 +38,10 @@ export default defineEventHandler(async (event) => {
     appointmentUrl: parsed.data.public.appointmentUrl || null,
     cvUrl: parsed.data.public.cvUrl || null,
     background: { ...defaultPublicBackgroundSettings, ...parsed.data.public.background },
+    // Absent du corps (ancien client) : on conserve les réglages d'intro déjà enregistrés au lieu de les réinitialiser.
+    cinematicIntro: parsed.data.public.cinematicIntro
+      ? sanitizeCinematicIntroSettings(parsed.data.public.cinematicIntro)
+      : (await readPublicSiteSettings()).cinematicIntro,
   };
   await Promise.all([
     writeSiteSetting('public', publicSettings),

@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { defaultPublicBackgroundSettings, type PublicSiteSettings } from '~/composables/usePortfolioData';
 import { getDatabase } from './database';
 import { siteSettings } from './schema';
+import { cloneCinematicIntroSettings, sanitizeCinematicIntroSettings } from '~/types/cinematic-intro';
 
 export type { PublicSiteSettings } from '~/composables/usePortfolioData';
 
@@ -14,6 +15,7 @@ export const defaultPublicSiteSettings: PublicSiteSettings = {
   cvUrl: null,
   missionTypes: [],
   background: defaultPublicBackgroundSettings,
+  cinematicIntro: cloneCinematicIntroSettings(),
 };
 
 export async function readSiteSetting<T>(key: string, fallback: T): Promise<T> {
@@ -30,6 +32,8 @@ export async function readPublicSiteSettings(): Promise<PublicSiteSettings> {
     ...stored,
     visiblePages,
     background: { ...defaultPublicBackgroundSettings, ...stored.background },
+    // Réglages enregistrés avant cette fonctionnalité : valeurs par défaut ; valeurs invalides : bornées.
+    cinematicIntro: sanitizeCinematicIntroSettings(stored.cinematicIntro),
   };
 }
 

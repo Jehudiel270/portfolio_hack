@@ -2,6 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue';
 import { useFetch, useHead, useRoute, useSeoMeta } from '#imports';
 import AdminMazeBackdrop from '~/components/AdminMazeBackdrop.vue';
+import CinematicIntro from '~/components/CinematicIntro.vue';
+import { buildCinematicBootScript } from '~/composables/useCinematicIntro';
+import { sanitizeCinematicIntroSettings } from '~/types/cinematic-intro';
 import { usePublicSiteUrl } from '~/composables/usePublicSiteUrl';
 import { defaultPublicBackgroundSettings, demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
 
@@ -29,6 +32,19 @@ const { data: portfolioData, error: portfolioError, refresh: refreshPortfolio } 
   default: () => demoPortfolio,
   immediate: !isAdminRoute.value,
 });
+// Introduction cinématique : décidée UNE fois, d'après la route d'arrivée. Un visiteur qui entre par /admin ne la voit jamais,
+// et elle ne repart pas à chaque navigation interne (le composant ne se remonte pas pour une route publique).
+const introEligible = !route.path.startsWith('/admin');
+const introSettings = computed(() => sanitizeCinematicIntroSettings(portfolioData.value.publicSettings?.cinematicIntro));
+const introMounted = computed(() => introEligible && !isAdminRoute.value && (introSettings.value.enabled || introSettings.value.replayButton));
+if (introEligible && introSettings.value.enabled) {
+  useHead({
+    // Posé dans <head>, avant le premier affichage : évite tout flash de l'overlay pour un visiteur déjà passé.
+    script: [{ key: 'cinematic-intro-boot', innerHTML: buildCinematicBootScript(introSettings.value) }],
+    // Sans JavaScript l'overlay ne pourrait jamais se retirer : on le masque.
+    noscript: [{ key: 'cinematic-intro-noscript', innerHTML: '<style>.cin-intro{display:none!important}</style>' }],
+  });
+}
 const publicBackground = computed(() => ({
   ...defaultPublicBackgroundSettings,
   ...portfolioData.value.publicSettings?.background,
@@ -169,6 +185,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <CinematicIntro v-if="introMounted" :settings="introSettings" />
   <div v-if="!isAdminRoute && publicBackground.showAmbient" class="public-ambient-backdrop" :style="publicBackgroundStyle" aria-hidden="true"></div>
   <AdminMazeBackdrop
     v-if="!isAdminRoute && publicBackground.showMaze"
