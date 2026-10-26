@@ -12,6 +12,7 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/svg+xml', href: '/brandmark.svg' },
         { rel: 'stylesheet', href: '/portfolio.css' },
         { rel: 'stylesheet', href: '/portfolio-enhancements.css' },
+        { rel: 'preconnect', href: 'https://api.iconify.design' },
       ],
     },
   },

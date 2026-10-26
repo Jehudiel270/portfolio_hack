@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { createIconifyUrl } from '~/composables/iconify';
 
 const props = defineProps<{ name: string; icon?: string | null; size?: number | string }>();
 const failed = ref(false);
@@ -78,12 +79,11 @@ const iconSource = computed(() => {
   if (/^https?:\/\//i.test(value)) return value;
   if (/^(?:logos|devicon|simple-icons):[a-z0-9-]+$/i.test(value)) {
     const [prefix, slug] = value.split(':');
-    const color = prefix === 'simple-icons' ? '?color=%23e5f2ff' : '';
-    return `https://api.iconify.design/${prefix}/${slug}.svg${color}`;
+    return createIconifyUrl(prefix, slug);
   }
   if (value) return '';
   const slug = aliases[(props.name || '').trim().toLowerCase()];
-  return slug ? `https://api.iconify.design/logos:${slug}.svg` : '';
+  return slug ? createIconifyUrl('logos', slug) : '';
 });
 const fallback = computed(() => props.icon && !props.icon.startsWith('logos:') && !/^https?:\/\//i.test(props.icon)
   ? props.icon.replace(/^text:/i, '').slice(0, 3).toUpperCase()
