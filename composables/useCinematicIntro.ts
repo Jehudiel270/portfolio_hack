@@ -552,23 +552,44 @@ export function useCinematicIntroRunner(options: RunnerOptions) {
     if (!audio) return;
     try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch { /* déjà libéré */ }
   }
+  function seekAudio(audio: HTMLAudioElement, positionMs: number) {
+    if (positionMs <= 0) return;
+    const seek = () => {
+      if (run?.audio !== audio) return;
+      try { audio.currentTime = positionMs / 1000; } catch { /* le média peut encore être en cours d'initialisation */ }
+    };
+    if (audio.readyState >= 1) seek();
+    else audio.addEventListener('loadedmetadata', seek, { once: true });
+  }
+  function playAudio(audio: HTMLAudioElement, plan: CinematicAudioPlan) {
+    const attempt = audio.play();
+    if (!attempt || typeof attempt.then !== 'function') return;
+    attempt.then(() => {
+      if (run?.audio !== audio || run.finished) return;
+      soundBlocked.value = false;
+      const elapsed = performance.now() - run.glitchStartAbs;
+      const remaining = plan.stopAtMs - elapsed;
+      if (remaining <= 0) { releaseAudio(); return; }
+      seekAudio(audio, plan.seekMs + Math.max(0, elapsed - plan.delayMs));
+      const fadeDuration = Math.min(plan.fadeOutMs, remaining);
+      const fadeDelay = Math.max(0, remaining - fadeDuration);
+      run.timers.push(window.setTimeout(() => fadeOutAudio(fadeDuration), fadeDelay));
+    }).catch((error: unknown) => {
+      if ((error as { name?: string })?.name === 'NotAllowedError') soundBlocked.value = true;
+      else if (run?.audio === audio) releaseAudio();
+    });
+  }
   function startAudio() {
     if (!run?.audio || !run.plan) return;
     const { audio, plan } = run;
-    try { if (plan.seekMs > 0) audio.currentTime = plan.seekMs / 1000; } catch { /* métadonnées pas encore prêtes : lecture depuis 0 puis resynchronisée */ }
-    const attempt = audio.play();
-    if (attempt && typeof attempt.catch === 'function') {
-      attempt.then(() => { soundBlocked.value = false; }).catch((error: unknown) => {
-        // Autoplay refusé par le navigateur : on n'essaie PAS de contourner, on propose un bouton.
-        if ((error as { name?: string })?.name === 'NotAllowedError') soundBlocked.value = true;
-        else releaseAudio();
-      });
-    }
+    seekAudio(audio, plan.seekMs);
+    playAudio(audio, plan);
   }
-  function fadeOutAudio() {
+  function fadeOutAudio(durationMs?: number) {
     if (!run?.audio || !run.plan) return;
     const audio = run.audio;
-    const steps = Math.max(2, Math.round(run.plan.fadeOutMs / 10));
+    const duration = durationMs ?? run.plan.fadeOutMs;
+    const steps = Math.max(2, Math.round(duration / 10));
     const start = audio.volume;
     let i = 0;
     run.fadeTimer = window.setInterval(() => {
@@ -582,8 +603,8 @@ export function useCinematicIntroRunner(options: RunnerOptions) {
     const elapsed = performance.now() - run.glitchStartAbs;
     if (elapsed < 0 || run.plan.stopAtMs - elapsed < 80) return;
     const position = run.plan.seekMs + Math.max(0, elapsed - run.plan.delayMs);
-    try { run.audio.currentTime = position / 1000; } catch { /* ignoré */ }
-    run.audio.play().then(() => { soundBlocked.value = false; }).catch(() => { /* toujours refusé : on laisse le bouton */ });
+    seekAudio(run.audio, position);
+    playAudio(run.audio, run.plan);
   }
 
   /* --------------------------- Focus, inert, scroll --------------------------- */
@@ -703,10 +724,7 @@ export function useCinematicIntroRunner(options: RunnerOptions) {
         });
         playScore(state, frames);
       });
-      if (state.audio) {
-        at(timeline.glitchStartMs + plan.delayMs, startAudio);
-        at(timeline.glitchStartMs + plan.stopAtMs - plan.fadeOutMs, fadeOutAudio);
-      }
+      if (state.audio) at(timeline.glitchStartMs + plan.delayMs, startAudio);
       at(timeline.holdStartMs, () => { phase.value = 'hold'; });
     }
     at(timeline.outroStartMs, () => { phase.value = 'outro'; applyNeutral(); releaseAudio(); soundBlocked.value = false; });
