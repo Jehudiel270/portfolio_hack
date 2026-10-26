@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { filterAiTools } from '../../composables/aiFilters';
+import { filterAiTools, parseAiUseCasesInput } from '../../composables/aiFilters';
 import { filterProjects } from '../../composables/projectFilters';
 import type { Technology } from '../../composables/usePortfolioData';
 import { contactInputSchema } from './contactValidation';
@@ -33,6 +33,10 @@ describe('public AI filters', () => {
     assert.deepEqual(filterAiTools(tools, { type: 'model' }).map((item) => item.name), ['GPT Model']);
     assert.deepEqual(filterAiTools(tools, { query: 'CODE' }).map((item) => item.name), ['GPT Model']);
     assert.deepEqual(filterAiTools(tools, { query: 'open', type: 'provider' }).map((item) => item.name), ['OpenAI']);
+  });
+
+  it('parses unique verified use cases from comma, semicolon or line-separated input', () => {
+    assert.deepEqual(parseAiUseCasesInput('Code, recherche;\nRédaction, Code'), ['Code', 'recherche', 'Rédaction']);
   });
 });
 

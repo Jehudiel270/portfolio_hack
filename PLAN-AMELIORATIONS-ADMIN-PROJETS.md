@@ -45,4 +45,4 @@ Rendre l’ajout et la mise à jour des projets fiables, compréhensibles et ada
 - [x] Vérification du build public/admin et du rendu public + écran de connexion admin sur mobile (390 px) et desktop (1440 px).
 - [x] Commit et push fast-forward vérifiés sur `main`.
 
-> La migration `0011` est incluse dans `pnpm db:migrate`, mais n’a pas été exécutée ici : aucun fichier `.env`/accès à la base n’est présent dans ce clone. L’ouverture du formulaire admin authentifié reste à valider après déploiement ou avec l’environnement d’administration; le bundle admin et l’écran de connexion ont été compilés et vérifiés.
+> La migration `0011` a été appliquée à la base Neon déjà configurée dans l’environnement local, puis les deux colonnes ont été relues et confirmées. Le champ « Usages vérifiés » IA a aussi été clarifié : il est visible sur `/ia` et sert à la recherche, avec validation des 12 usages maximum et des 60 caractères par usage. La session admin authentifiée n’a pas été ouverte ici.

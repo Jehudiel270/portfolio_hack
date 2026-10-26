@@ -5,6 +5,10 @@ export interface AiFilters {
   type?: string;
 }
 
+export function parseAiUseCasesInput(value: string): string[] {
+  return [...new Set(value.split(/[,\n;]/u).map((item) => item.trim()).filter(Boolean))];
+}
+
 export function filterAiTools(items: Technology[], filters: AiFilters): Technology[] {
   const query = filters.query?.trim().toLocaleLowerCase('fr') || '';
   const type = filters.type || '';
