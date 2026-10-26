@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue';
 import { useFetch, useHead, useRoute, useSeoMeta } from '#imports';
 import AdminMazeBackdrop from '~/components/AdminMazeBackdrop.vue';
+import FloatingTechIcons from '~/components/FloatingTechIcons.vue';
 import CinematicIntro from '~/components/CinematicIntro.vue';
 import { buildCinematicBootScript } from '~/composables/useCinematicIntro';
 import { sanitizeCinematicIntroSettings } from '~/types/cinematic-intro';
@@ -189,6 +190,7 @@ onBeforeUnmount(() => {
 <template>
   <CinematicIntro v-if="introMounted" :settings="introSettings" />
   <div v-if="!isAdminRoute && publicBackground.showAmbient" class="public-ambient-backdrop" :style="publicBackgroundStyle" aria-hidden="true"></div>
+  <FloatingTechIcons v-if="!isAdminRoute" :settings="portfolioData.publicSettings?.floatingIcons || { enabled: false, maxIcons: 8, opacity: 20, speed: 1, icons: [] }" />
   <AdminMazeBackdrop
     v-if="!isAdminRoute && publicBackground.showMaze"
     class="public-maze-canvas"

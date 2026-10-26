@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { defaultPublicBackgroundSettings, type PublicSiteSettings } from '~/composables/usePortfolioData';
+import { defaultFloatingIconSettings, defaultProjectDisplaySettings, defaultPublicBackgroundSettings, defaultRichTextSettings, type PublicSiteSettings } from '~/composables/usePortfolioData';
 import { getDatabase } from './database';
 import { siteSettings } from './schema';
 import { cloneCinematicIntroSettings, sanitizeCinematicIntroSettings } from '~/types/cinematic-intro';
@@ -16,6 +16,10 @@ export const defaultPublicSiteSettings: PublicSiteSettings = {
   missionTypes: [],
   background: defaultPublicBackgroundSettings,
   cinematicIntro: cloneCinematicIntroSettings(),
+  floatingIcons: defaultFloatingIconSettings,
+  technologySlots: [],
+  richText: defaultRichTextSettings,
+  projectDisplay: defaultProjectDisplaySettings,
 };
 
 export async function readSiteSetting<T>(key: string, fallback: T): Promise<T> {
@@ -41,6 +45,21 @@ export async function readPublicSiteSettings(): Promise<PublicSiteSettings> {
     },
     // Réglages enregistrés avant cette fonctionnalité : valeurs par défaut ; valeurs invalides : bornées.
     cinematicIntro: sanitizeCinematicIntroSettings(stored.cinematicIntro),
+    floatingIcons: {
+      ...defaultFloatingIconSettings,
+      ...stored.floatingIcons,
+      maxIcons: Math.min(16, Math.max(1, Number(stored.floatingIcons?.maxIcons) || defaultFloatingIconSettings.maxIcons)),
+      opacity: Math.min(50, Math.max(5, Number(stored.floatingIcons?.opacity) || defaultFloatingIconSettings.opacity)),
+      speed: Math.min(2, Math.max(0.5, Number(stored.floatingIcons?.speed) || defaultFloatingIconSettings.speed)),
+      icons: Array.isArray(stored.floatingIcons?.icons) ? stored.floatingIcons.icons.slice(0, 30) : defaultFloatingIconSettings.icons,
+    },
+    technologySlots: Array.isArray(stored.technologySlots) ? stored.technologySlots.slice(0, 3) : [],
+    richText: {
+      ...defaultRichTextSettings,
+      ...stored.richText,
+      fields: { ...defaultRichTextSettings.fields, ...stored.richText?.fields },
+    },
+    projectDisplay: { ...defaultProjectDisplaySettings, ...stored.projectDisplay },
   };
 }
 

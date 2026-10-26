@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { asc, eq } from 'drizzle-orm';
 import { getDatabase } from './database';
 import { achievements, activityLog, certifications, educations, journey, projects, skills, technologies, testimonials } from './schema';
+import { isRichTextEmpty, looksLikeHtml, richTextLength, sanitizeHtml } from '#shared/rich-text';
 
 export const resourceTables = { projects, journey, educations, certifications, achievements, testimonials, skills, technologies } as const;
 export type ResourceName = keyof typeof resourceTables;
@@ -12,7 +13,7 @@ export function getResource(name: string): ResourceName {
 }
 const optionalUrl = z.union([z.string().url().max(1200), z.literal(''), z.null()]).optional();
 export const contentSchemas = {
-  projects: z.object({ title:z.string().trim().min(1).max(160), slug:z.string().trim().min(1).max(180).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), description:z.string().trim().min(1).max(3000), tags:z.array(z.string().trim().min(1).max(40)).max(12).default([]), demoUrl:optionalUrl, repoUrl:optionalUrl, imageUrl:optionalUrl, year:z.string().max(12).nullable().optional(), projectType:z.string().trim().min(1).max(60).default('Web'), metrics:z.array(z.object({label:z.string().trim().min(1).max(80),value:z.string().trim().min(1).max(100),context:z.string().max(300).optional()})).max(12).default([]), featured:z.coerce.boolean().default(false), caseRole:z.string().max(180).nullable().optional(), caseContext:z.string().max(3000).nullable().optional(), responsibilities:z.array(z.string().trim().min(1).max(500)).max(30).default([]), outcomes:z.string().max(3000).nullable().optional(), gallery:z.array(z.object({url:z.string().url().max(1200),alt:z.string().trim().max(250).default(''),caption:z.string().max(500).default(''),sortOrder:z.coerce.number().int().min(0).max(10000)})).max(20).default([]), publicationStatus:z.enum(['draft','published']).default('published'), publishAt:z.coerce.date().nullable().optional(), sortOrder:z.coerce.number().int().min(0).max(10000).default(0) }),
+  projects: z.object({ title:z.string().trim().min(1).max(160), slug:z.string().trim().min(1).max(180).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), description:z.string().trim().min(1).max(12000), tags:z.array(z.string().trim().min(1).max(40)).max(12).default([]), demoUrl:optionalUrl, repoUrl:optionalUrl, imageUrl:optionalUrl, year:z.string().max(12).nullable().optional(), projectType:z.string().trim().min(1).max(60).default('Web'), metrics:z.array(z.object({label:z.string().trim().min(1).max(80),value:z.string().trim().min(1).max(100),context:z.string().max(300).optional(),unit:z.string().max(40).optional(),period:z.string().max(80).optional(),source:z.string().max(300).optional(),evidenceUrl:optionalUrl})).max(12).default([]), caseLayout:z.object({accentColor:z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),layout:z.enum(['standard','editorial']).optional(),showRole:z.boolean().optional(),showContext:z.boolean().optional(),showResponsibilities:z.boolean().optional(),showOutcomes:z.boolean().optional(),showMetrics:z.boolean().optional(),showGallery:z.boolean().optional()}).nullable().optional(), featured:z.coerce.boolean().default(false), caseRole:z.string().max(180).nullable().optional(), caseContext:z.string().max(12000).nullable().optional(), responsibilities:z.array(z.string().trim().min(1).max(500)).max(30).default([]), outcomes:z.string().max(12000).nullable().optional(), gallery:z.array(z.object({url:z.string().url().max(1200),alt:z.string().trim().max(250).default(''),caption:z.string().max(500).default(''),sortOrder:z.coerce.number().int().min(0).max(10000)})).max(20).default([]), publicationStatus:z.enum(['draft','published']).default('published'), publishAt:z.coerce.date().nullable().optional(), sortOrder:z.coerce.number().int().min(0).max(10000).default(0) }),
   journey: z.object({ role:z.string().trim().min(1).max(180), organization:z.string().trim().min(1).max(180), location:z.string().max(120).nullable().optional(), startDate:z.string().trim().min(1).max(32), endDate:z.string().max(32).nullable().optional(), description:z.string().trim().min(1).max(3000), imageUrl:optionalUrl, sortOrder:z.coerce.number().int().min(0).max(10000).default(0) }),
   educations: z.object({ title:z.string().trim().min(1).max(180), institution:z.string().trim().min(1).max(180), degree:z.string().max(180).default(''), location:z.string().max(120).nullable().optional(), startDate:z.string().trim().min(1).max(32), endDate:z.string().max(32).nullable().optional(), status:z.enum(['in_progress','completed']).default('completed'), description:z.string().max(3000).default(''), imageUrl:optionalUrl, sortOrder:z.coerce.number().int().min(0).max(10000).default(0) }),
   certifications: z.object({ title:z.string().trim().min(1).max(180), issuer:z.string().trim().min(1).max(180), issuedAt:z.string().max(32).nullable().optional(), expiresAt:z.string().max(32).nullable().optional(), credentialId:z.string().max(180).nullable().optional(), credentialUrl:optionalUrl, skills:z.array(z.string().trim().min(1).max(80)).max(20).default([]), description:z.string().max(3000).default(''), imageUrl:optionalUrl, sortOrder:z.coerce.number().int().min(0).max(10000).default(0) }),
@@ -31,6 +32,21 @@ type TechnologyAiMetadata = {
   description?: string | null;
   officialUrl?: string | null;
 };
+
+function sanitizeProjectRichText(value: Record<string, unknown>) {
+  for (const key of ['description', 'caseContext', 'outcomes'] as const) {
+    const content = value[key];
+    if (typeof content !== 'string') continue;
+    const sanitized = looksLikeHtml(content) ? sanitizeHtml(content) : content;
+    if (key === 'description' && isRichTextEmpty(sanitized)) {
+      throw createError({ statusCode: 400, statusMessage: 'Description requise.', message: 'La description doit contenir du texte ou une image.' });
+    }
+    if (richTextLength(sanitized) > 3000) {
+      throw createError({ statusCode: 400, statusMessage: 'Texte trop long.', message: 'La description, le contexte et les résultats sont limités à 3 000 caractères visibles.' });
+    }
+    value[key] = key !== 'description' && isRichTextEmpty(sanitized) ? null : sanitized;
+  }
+}
 
 async function validateTechnologyAiMetadata(value: TechnologyAiMetadata) {
   const hasAiMetadata = [value.aiType, value.aiProviderId, value.aiAccessMode, value.aiVerifiedAt, value.description, value.officialUrl]
@@ -70,6 +86,7 @@ export async function createResource(name: ResourceName, body: unknown) {
     throw createError({ statusCode: 400, statusMessage: 'Contenu invalide.', message: fields.length ? `Vérifie les champs : ${fields.join(', ')}.` : 'Les données du contenu sont invalides.' });
   }
   const value = parsed.data; const table:any = resourceTables[name];
+  if (name === 'projects') sanitizeProjectRichText(value);
   if (name === 'technologies') await validateTechnologyAiMetadata(value as TechnologyAiMetadata);
   const testimonialValue = value as { publicationStatus?: string; permissionConfirmed?: boolean };
   if (name === 'testimonials' && testimonialValue.publicationStatus === 'published' && !testimonialValue.permissionConfirmed) {
@@ -86,6 +103,7 @@ export async function updateResource(name: ResourceName, id: number, body: unkno
     throw createError({ statusCode: 400, statusMessage: 'Contenu invalide.', message: fields.length ? `Vérifie les champs : ${fields.join(', ')}.` : 'Les données du contenu sont invalides.' });
   }
   const value = parsed.data; if (!Object.keys(value).length) throw createError({ statusCode:400,statusMessage:'Aucune donnée à modifier.' });
+  if (name === 'projects') sanitizeProjectRichText(value);
   const table:any=resourceTables[name]; const db=getDatabase();
   const [current] = await db.select().from(table).where(eq(table.id,id)).limit(1);
   if (!current) throw createError({statusCode:404,statusMessage:'Élément introuvable.'});

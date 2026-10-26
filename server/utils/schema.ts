@@ -49,6 +49,8 @@ export const projects = pgTable('portfolio_projects', {
   caseContext: text('case_context'),
   responsibilities: text('responsibilities').array().notNull().default(sql`ARRAY[]::text[]`),
   outcomes: text('outcomes'),
+  metrics: jsonb('metrics').$type<{ label: string; value: string; context?: string; unit?: string; period?: string; source?: string; evidenceUrl?: string }[]>().notNull().default(sql`'[]'::jsonb`),
+  caseLayout: jsonb('case_layout').$type<{ accentColor?: string; layout?: 'standard' | 'editorial'; showRole?: boolean; showContext?: boolean; showResponsibilities?: boolean; showOutcomes?: boolean; showMetrics?: boolean; showGallery?: boolean }>(),
   gallery: jsonb('gallery').$type<{ url: string; alt: string; caption: string; sortOrder: number }[]>().notNull().default(sql`'[]'::jsonb`),
   publicationStatus: varchar('publication_status', { length: 20 }).notNull().default('published'),
   publishAt: timestamp('publish_at', { withTimezone: true }),

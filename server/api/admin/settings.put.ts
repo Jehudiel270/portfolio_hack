@@ -1,6 +1,11 @@
 import { createError, defineEventHandler, readBody } from 'h3';
 import { z } from 'zod';
-import { defaultPublicBackgroundSettings } from '~/composables/usePortfolioData';
+import {
+  defaultFloatingIconSettings,
+  defaultProjectDisplaySettings,
+  defaultPublicBackgroundSettings,
+  defaultRichTextSettings,
+} from '~/composables/usePortfolioData';
 import { requireAdmin } from '~/server/utils/auth';
 import { cinematicIntroSchema } from '~/server/utils/cinematicIntro';
 import { defaultPublicSiteSettings, readPublicSiteSettings, readSiteSetting, writeSiteSetting } from '~/server/utils/siteSettings';
@@ -22,6 +27,27 @@ const schema = z.object({
       darkCardOpacity: z.coerce.number().int().min(40).max(85).optional(),
     }).optional(),
     cinematicIntro: cinematicIntroSchema.optional(),
+    floatingIcons: z.object({
+      enabled: z.boolean(),
+      maxIcons: z.coerce.number().int().min(1).max(16),
+      opacity: z.coerce.number().int().min(5).max(50),
+      speed: z.coerce.number().min(0.5).max(2),
+      icons: z.array(z.object({ name: z.string().trim().min(1).max(80), icon: z.string().trim().min(1).max(120) })).max(30),
+    }).optional(),
+    technologySlots: z.array(z.object({
+      name: z.string().trim().min(1).max(40),
+      technologies: z.array(z.string().trim().min(1).max(100)).max(30),
+    })).max(3).optional(),
+    richText: z.object({
+      enabled: z.boolean(),
+      fields: z.object({ projectDescription: z.boolean(), projectContext: z.boolean(), projectOutcomes: z.boolean() }),
+    }).optional(),
+    projectDisplay: z.object({
+      defaultLayout: z.enum(['standard', 'editorial']),
+      showType: z.boolean(),
+      showYear: z.boolean(),
+      showMetrics: z.boolean(),
+    }).optional(),
   }),
   contactRetentionDays: z.coerce.number().int().min(30).max(3650),
 });
@@ -32,7 +58,10 @@ export default defineEventHandler(async (event) => {
   if (!parsed.success) throw createError({ statusCode: 400, statusMessage: 'Paramètres invalides.', message: 'Vérifie les durées, liens et options de visibilité.' });
   const visiblePages = { ...defaultPublicSiteSettings.visiblePages, ...parsed.data.public.visiblePages };
   const background = parsed.data.public.background;
-  const currentSettings = !parsed.data.public.cinematicIntro || background?.darkCardOpacity === undefined
+  const needsExistingSettings = !parsed.data.public.cinematicIntro || background?.darkCardOpacity === undefined
+    || !parsed.data.public.floatingIcons || !parsed.data.public.technologySlots
+    || !parsed.data.public.richText || !parsed.data.public.projectDisplay;
+  const currentSettings = needsExistingSettings
     ? await readPublicSiteSettings()
     : null;
   delete visiblePages.realisations;
@@ -53,6 +82,10 @@ export default defineEventHandler(async (event) => {
     cinematicIntro: parsed.data.public.cinematicIntro
       ? sanitizeCinematicIntroSettings(parsed.data.public.cinematicIntro)
       : (currentSettings?.cinematicIntro ?? defaultPublicSiteSettings.cinematicIntro),
+    floatingIcons: parsed.data.public.floatingIcons ?? currentSettings?.floatingIcons ?? defaultFloatingIconSettings,
+    technologySlots: parsed.data.public.technologySlots ?? currentSettings?.technologySlots ?? [],
+    richText: parsed.data.public.richText ?? currentSettings?.richText ?? defaultRichTextSettings,
+    projectDisplay: parsed.data.public.projectDisplay ?? currentSettings?.projectDisplay ?? defaultProjectDisplaySettings,
   };
   await Promise.all([
     writeSiteSetting('public', publicSettings),
