@@ -32,6 +32,7 @@ const schema = z.object({
       maxIcons: z.coerce.number().int().min(1).max(16),
       opacity: z.coerce.number().int().min(5).max(50),
       speed: z.coerce.number().min(0.5).max(2),
+      layer: z.enum(['behind-background', 'above-background', 'foreground']).default('above-background'),
       icons: z.array(z.object({ name: z.string().trim().min(1).max(80), icon: z.string().trim().min(1).max(120) })).max(30),
     }).optional(),
     technologySlots: z.array(z.object({

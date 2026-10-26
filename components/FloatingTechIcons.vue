@@ -7,6 +7,7 @@ interface FloatingIcon { id: number; name: string; icon: string; top: number; le
 const visibleIcons = ref<FloatingIcon[]>([]);
 let timer = 0;
 let nextId = 0;
+let reducedMotionQuery: MediaQueryList | null = null;
 const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
 
 function spawn() {
@@ -29,20 +30,33 @@ function spawn() {
 }
 function schedule() {
   window.clearTimeout(timer);
-  if (!props.settings.enabled || !props.settings.icons.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  if (!props.settings.enabled || !props.settings.icons.length) {
     visibleIcons.value = [];
     return;
   }
   spawn();
+  if (reducedMotionQuery?.matches) return;
   timer = window.setTimeout(schedule, randomBetween(1400, 2600) / Math.max(0.5, props.settings.speed));
 }
-watch(() => [props.settings.enabled, props.settings.icons, props.settings.maxIcons, props.settings.opacity, props.settings.speed], schedule, { deep: true });
-onMounted(schedule);
-onBeforeUnmount(() => window.clearTimeout(timer));
+watch(() => [props.settings.enabled, props.settings.icons, props.settings.maxIcons, props.settings.opacity, props.settings.speed, props.settings.layer], schedule, { deep: true });
+const layerZIndex = () => ({
+  'behind-background': 0,
+  'above-background': 1,
+  foreground: 20,
+}[props.settings.layer]);
+onMounted(() => {
+  reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  reducedMotionQuery.addEventListener('change', schedule);
+  schedule();
+});
+onBeforeUnmount(() => {
+  window.clearTimeout(timer);
+  reducedMotionQuery?.removeEventListener('change', schedule);
+});
 </script>
 
 <template>
-  <div v-if="settings.enabled" class="floating-tech-icons" aria-hidden="true">
+  <div v-if="settings.enabled" class="floating-tech-icons" :style="{ '--floating-icons-z': layerZIndex() }" aria-hidden="true">
     <span v-for="item in visibleIcons" :key="item.id" class="floating-tech-icons__item" :style="{
       '--icon-top': `${item.top}%`,
       '--icon-left': `${item.left}%`,
@@ -57,7 +71,7 @@ onBeforeUnmount(() => window.clearTimeout(timer));
 </template>
 
 <style scoped>
-.floating-tech-icons { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.floating-tech-icons { position: fixed; inset: 0; z-index: var(--floating-icons-z, 1); overflow: hidden; pointer-events: none; }
 .floating-tech-icons__item { position: absolute; top: var(--icon-top); left: var(--icon-left); width: var(--icon-size); height: var(--icon-size); opacity: var(--icon-opacity); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--cyan) 24%, transparent)); animation: float-tech var(--icon-duration) ease-in-out infinite alternate; }
 .floating-tech-icons__item :deep(.technology-icon), .floating-tech-icons__item :deep(.technology-icon-fallback) { width: 100% !important; height: 100% !important; object-fit: contain; }
 @keyframes float-tech { to { transform: translate3d(0, -22px, 0) rotate(var(--icon-rotation)); } }

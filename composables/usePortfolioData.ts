@@ -38,7 +38,8 @@ export interface PublicBackgroundSettings {
   darkCardOpacity: number;
 }
 export interface FloatingIconItem { name: string; icon: string; }
-export interface FloatingIconSettings { enabled: boolean; maxIcons: number; opacity: number; speed: number; icons: FloatingIconItem[]; }
+export type FloatingIconLayer = 'behind-background' | 'above-background' | 'foreground';
+export interface FloatingIconSettings { enabled: boolean; maxIcons: number; opacity: number; speed: number; layer: FloatingIconLayer; icons: FloatingIconItem[]; }
 export interface ProjectTechnologySlot { name: string; technologies: string[]; }
 export interface RichTextSettings { enabled: boolean; fields: { projectDescription: boolean; projectContext: boolean; projectOutcomes: boolean; }; }
 export interface ProjectDisplaySettings { defaultLayout: 'standard' | 'editorial'; showType: boolean; showYear: boolean; showMetrics: boolean; }
@@ -56,6 +57,7 @@ export const defaultFloatingIconSettings: FloatingIconSettings = {
   maxIcons: 8,
   opacity: 20,
   speed: 1,
+  layer: 'above-background',
   icons: [
     { name: 'JavaScript', icon: 'logos:javascript' },
     { name: 'TypeScript', icon: 'logos:typescript-icon' },

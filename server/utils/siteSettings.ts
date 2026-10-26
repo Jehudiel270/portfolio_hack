@@ -31,6 +31,7 @@ export async function readPublicSiteSettings(): Promise<PublicSiteSettings> {
   const stored = await readSiteSetting('public', defaultPublicSiteSettings);
   const visiblePages = { ...defaultPublicSiteSettings.visiblePages, ...stored.visiblePages };
   const darkCardOpacity = Number(stored.background?.darkCardOpacity);
+  const floatingIconLayer = stored.floatingIcons?.layer;
   delete visiblePages.realisations;
   return {
     ...defaultPublicSiteSettings,
@@ -51,6 +52,9 @@ export async function readPublicSiteSettings(): Promise<PublicSiteSettings> {
       maxIcons: Math.min(16, Math.max(1, Number(stored.floatingIcons?.maxIcons) || defaultFloatingIconSettings.maxIcons)),
       opacity: Math.min(50, Math.max(5, Number(stored.floatingIcons?.opacity) || defaultFloatingIconSettings.opacity)),
       speed: Math.min(2, Math.max(0.5, Number(stored.floatingIcons?.speed) || defaultFloatingIconSettings.speed)),
+      layer: floatingIconLayer === 'behind-background' || floatingIconLayer === 'above-background' || floatingIconLayer === 'foreground'
+        ? floatingIconLayer
+        : defaultFloatingIconSettings.layer,
       icons: Array.isArray(stored.floatingIcons?.icons) ? stored.floatingIcons.icons.slice(0, 30) : defaultFloatingIconSettings.icons,
     },
     technologySlots: Array.isArray(stored.technologySlots) ? stored.technologySlots.slice(0, 3) : [],

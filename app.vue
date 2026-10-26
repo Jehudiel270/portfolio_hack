@@ -190,13 +190,13 @@ onBeforeUnmount(() => {
 <template>
   <CinematicIntro v-if="introMounted" :settings="introSettings" />
   <div v-if="!isAdminRoute && publicBackground.showAmbient" class="public-ambient-backdrop" :style="publicBackgroundStyle" aria-hidden="true"></div>
-  <FloatingTechIcons v-if="!isAdminRoute" :settings="portfolioData.publicSettings?.floatingIcons || { enabled: false, maxIcons: 8, opacity: 20, speed: 1, icons: [] }" />
   <AdminMazeBackdrop
     v-if="!isAdminRoute && publicBackground.showMaze"
     class="public-maze-canvas"
     :speed="publicBackground.speed"
     :style="publicBackgroundStyle"
   />
+  <FloatingTechIcons v-if="!isAdminRoute" :settings="portfolioData.publicSettings?.floatingIcons || { enabled: false, maxIcons: 8, opacity: 20, speed: 1, layer: 'above-background', icons: [] }" />
   <div v-if="!isAdminRoute" class="public-light-veil" aria-hidden="true"></div>
   <div v-if="!isAdminRoute" class="site-scroll-progress" aria-hidden="true"></div>
   <NuxtPage />

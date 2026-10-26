@@ -168,6 +168,10 @@ html[data-theme-transition]::view-transition-old(root) {
   opacity: var(--public-maze-intensity, 0.45);
 }
 
+.site-shell > .shell-container {
+  z-index: 2;
+}
+
 html[data-public-background-image='off'] .site-shell::after {
   display: none !important;
 }
