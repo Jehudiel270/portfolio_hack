@@ -43,6 +43,6 @@ Rendre l’ajout et la mise à jour des projets fiables, compréhensibles et ada
 - [x] Diagnostic confirmé dans le clone Git et revue des composants fournis.
 - [x] Implémentation, migration SQL et tests dédiés au texte riche.
 - [x] Vérification du build public/admin et du rendu public + écran de connexion admin sur mobile (390 px) et desktop (1440 px).
-- [ ] Commit et push fast-forward vérifiés sur `main`.
+- [x] Commit et push fast-forward vérifiés sur `main`.
 
 > La migration `0011` est incluse dans `pnpm db:migrate`, mais n’a pas été exécutée ici : aucun fichier `.env`/accès à la base n’est présent dans ce clone. L’ouverture du formulaire admin authentifié reste à valider après déploiement ou avec l’environnement d’administration; le bundle admin et l’écran de connexion ont été compilés et vérifiés.
