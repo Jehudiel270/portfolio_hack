@@ -84,7 +84,7 @@ function clearFilters() {
         <button class="button secondary project-filter-reset" type="button" :disabled="!search && !selectedTechnology && !selectedYear && !selectedType" @click="clearFilters">Effacer les filtres</button>
       </form>
       <p v-if="allProjects.length" class="project-results-count" role="status">{{ projects.length }} projet{{ projects.length > 1 ? 's' : '' }} affiché{{ projects.length > 1 ? 's' : '' }} sur {{ allProjects.length }}</p>
-      <div v-if="projects.length" class="project-grid"><ProjectCard v-for="project in projects" :key="project.slug" :project="project" /></div>
+      <div v-if="projects.length" class="project-grid"><ProjectCard v-for="project in projects" :key="project.slug" :project="project" :technologies="portfolio.technologies" /></div>
       <p v-else-if="allProjects.length" class="window admin-empty">Aucun projet ne correspond à ces filtres. <button class="text-link" type="button" @click="clearFilters">Effacer les filtres</button></p>
       <p v-else class="window admin-empty">Aucun projet n’est disponible pour le moment.</p>
     </main>

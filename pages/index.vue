@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useFetch, useSeoMeta } from '#imports';
 import { Activity, ArrowRight, ArrowUpRight, Award, BriefcaseBusiness, Check, Code2, GraduationCap, Mail, MapPin, Sparkles, Terminal, Workflow } from 'lucide-vue-next';
 import ProjectCard from '~/components/ProjectCard.vue';
+import ProjectTechnologyTags from '~/components/ProjectTechnologyTags.vue';
 import TechnologyIcon from '~/components/TechnologyIcon.vue';
 import { demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
 import { getSocialNetwork, resolveSocialLinks } from '~/composables/socialNetworks';
@@ -51,7 +52,7 @@ function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoVi
       </section>
       <section class="panel-row" aria-label="Résumé du portfolio">
         <WindowPanel title="Projets récents" class="content-panel">
-          <div class="project-list"><NuxtLink v-for="project in projects.slice(0,3)" :key="project.slug" :to="`/projets/${project.slug}`" class="project-card"><span class="project-thumb"><img v-if="project.imageUrl" :src="project.imageUrl" :alt="project.title" loading="lazy"><Code2 v-else :size="23" /></span><span><span class="project-name">{{ project.title }}</span><span class="project-desc">{{ project.description }}</span><span class="tag-list"><span v-for="tag in project.tags.slice(0,2)" :key="tag" class="tag technology-tag"><TechnologyIcon :name="tag" size="14" /><span>{{ tag }}</span></span></span></span><ArrowRight class="project-arrow" :size="15" /></NuxtLink></div>
+          <div class="project-list"><NuxtLink v-for="project in projects.slice(0,3)" :key="project.slug" :to="`/projets/${project.slug}`" class="project-card"><span class="project-thumb"><img v-if="project.imageUrl" :src="project.imageUrl" :alt="project.title" loading="lazy"><Code2 v-else :size="23" /></span><span><span class="project-name">{{ project.title }}</span><span class="project-desc">{{ project.description }}</span><span class="tag-list"><ProjectTechnologyTags :tags="project.tags" :technologies="portfolio.technologies" :limit="2" :icon-size="14" /></span></span><ArrowRight class="project-arrow" :size="15" /></NuxtLink></div>
         </WindowPanel>
         <WindowPanel title="À propos" class="content-panel">
           <div class="window-body"><p>{{ profile.bio }}</p><div class="about-points"><span class="about-point"><Workflow :size="15" /> Full Stack Web &amp; Mobile</span><span class="about-point"><Sparkles :size="15" /> Passionné de jeux vidéo</span><span class="about-point"><Activity :size="15" /> Toujours en apprentissage</span><span class="about-point"><Check :size="15" /> Ouvert aux opportunités</span></div></div>
@@ -77,7 +78,7 @@ function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoVi
       </section>
       <section id="projets" class="section">
         <div class="section-head"><div><div class="eyebrow">02 / Sélection</div><h2>Projets <span class="gradient-text">récents</span></h2></div><p class="section-sub">// Des idées devenues interfaces</p></div>
-        <div class="project-grid"><ProjectCard v-for="project in projects" :key="project.slug" :project="project" /></div>
+        <div class="project-grid"><ProjectCard v-for="project in projects" :key="project.slug" :project="project" :technologies="portfolio.technologies" /></div>
       </section>
       <section id="competences" class="section">
         <div class="section-head"><div><div class="eyebrow">03 / Stack</div><h2>Outils et <span class="gradient-text">savoir-faire</span></h2></div><p class="section-sub">// Curieux de la stack à la livraison</p></div>

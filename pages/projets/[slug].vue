@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { ArrowLeft, ArrowUpRight, ExternalLink, Github } from 'lucide-vue-next';
 import { createError, useFetch, useRoute, useSeoMeta } from '#imports';
 import { demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
-import TechnologyIcon from '~/components/TechnologyIcon.vue';
+import ProjectTechnologyTags from '~/components/ProjectTechnologyTags.vue';
 import { usePublicSiteUrl } from '~/composables/usePublicSiteUrl';
 
 const route = useRoute();
@@ -41,7 +41,7 @@ useSeoMeta({
         <h1>{{ project.title }}</h1>
         <p class="project-detail-description">{{ project.description }}</p>
         <div class="tag-list project-detail-tags">
-          <span v-for="tag in project.tags" :key="tag" class="tag technology-tag"><TechnologyIcon :name="tag" size="17" /><span>{{ tag }}</span></span>
+          <ProjectTechnologyTags :tags="project.tags" :technologies="portfolio.technologies" :icon-size="17" />
         </div>
         <div v-if="project.imageUrl" class="window project-detail-image">
           <img :src="project.imageUrl" :alt="`Aperçu de ${project.title}`">

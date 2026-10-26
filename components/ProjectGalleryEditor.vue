@@ -44,7 +44,7 @@ function acceptDroppedFiles(event: DragEvent) {
 <template>
   <section class="gallery-editor">
     <div class="gallery-editor-heading">
-      <div><strong>Captures du projet</strong><small>Dépose des images ici, ou fais glisser une capture pour la réordonner.</small></div>
+      <div><strong>Captures du projet</strong><small>Dépose des images ici, ou fais glisser une capture pour la réordonner.</small><small>Format conseillé : environ 1200 × 800 px (3:2) pour des captures nettes.</small></div>
       <div class="gallery-editor-actions">
         <button class="button secondary" type="button" @click="addEmpty">Ajouter une URL</button>
         <button v-if="allowUpload" class="button secondary" type="button" @click="emit('upload')">Téléverser</button>

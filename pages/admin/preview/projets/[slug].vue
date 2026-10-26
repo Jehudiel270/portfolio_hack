@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useFetch, useRoute, useSeoMeta } from '#imports';
-import type { Project } from '~/composables/usePortfolioData';
-import TechnologyIcon from '~/components/TechnologyIcon.vue';
+import type { PortfolioData, Project } from '~/composables/usePortfolioData';
+import { demoPortfolio } from '~/composables/usePortfolioData';
+import ProjectTechnologyTags from '~/components/ProjectTechnologyTags.vue';
 
 useSeoMeta({ title: 'Aperçu privé du projet — Carrel DOSSOU', robots: 'noindex, nofollow' });
 const route = useRoute();
 const { data: project, error } = await useFetch<Project>(`/api/admin/projects/${encodeURIComponent(String(route.params.slug))}/preview`);
+const { data: portfolio } = await useFetch<PortfolioData>('/api/portfolio', { default: () => demoPortfolio });
 const gallery = computed(() => [...(project.value?.gallery || [])].sort((a, b) => a.sortOrder - b.sortOrder));
 </script>
 
@@ -19,7 +21,7 @@ const gallery = computed(() => [...(project.value?.gallery || [])].sort((a, b) =
         <div class="eyebrow">Aperçu privé · {{ project.publicationStatus === 'draft' ? 'Brouillon' : 'Publication programmée' }}</div>
         <h1>{{ project.title }}</h1>
         <p class="project-detail-description">{{ project.description }}</p>
-        <div class="tag-list project-detail-tags"><span v-for="tag in project.tags" :key="tag" class="tag technology-tag"><TechnologyIcon :name="tag" size="17" /><span>{{ tag }}</span></span></div>
+        <div class="tag-list project-detail-tags"><ProjectTechnologyTags :tags="project.tags" :technologies="portfolio?.technologies || []" :icon-size="17" /></div>
         <img v-if="project.imageUrl" class="window project-detail-image" :src="project.imageUrl" :alt="`Visuel principal de ${project.title}`">
         <section v-if="project.caseRole||project.caseContext||project.responsibilities?.length||project.outcomes" class="window project-detail-content">
           <div class="window-body">

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ArrowUpRight, Code2, ExternalLink, Github } from 'lucide-vue-next';
-import TechnologyIcon from '~/components/TechnologyIcon.vue';
+import ProjectTechnologyTags from '~/components/ProjectTechnologyTags.vue';
+import type { Technology } from '~/composables/usePortfolioData';
 export interface ProjectItem { id?: number; title: string; slug?: string; description: string; tags: string[]; demoUrl?: string | null; repoUrl?: string | null; imageUrl?: string | null; year?: string | null; featured?: boolean; }
-defineProps<{ project: ProjectItem }>();
+defineProps<{ project: ProjectItem; technologies?: Technology[] }>();
 </script>
 <template>
   <article class="window project-feature">
@@ -12,7 +13,7 @@ defineProps<{ project: ProjectItem }>();
     <div class="project-feature-body">
       <h3><NuxtLink v-if="project.slug" :to="`/projets/${project.slug}`">{{ project.title }}</NuxtLink><template v-else>{{ project.title }}</template></h3>
       <p>{{ project.description }}</p>
-      <div class="tag-list"><span v-for="tag in project.tags.slice(0,3)" :key="tag" class="tag technology-tag"><TechnologyIcon :name="tag" size="16" /><span>{{ tag }}</span></span></div>
+      <div class="tag-list"><ProjectTechnologyTags :tags="project.tags" :technologies="technologies || []" :limit="3" /></div>
       <div class="project-bottom">
         <NuxtLink v-if="project.slug" class="text-link" :to="`/projets/${project.slug}`">Étude de cas <ArrowUpRight :size="14" /></NuxtLink>
         <span v-else class="muted mono" style="font-size:10px">{{ project.year }}</span>
