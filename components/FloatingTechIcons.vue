@@ -21,10 +21,10 @@ function spawn() {
     icon: chosen.icon,
     top: randomBetween(8, 88),
     left: randomBetween(5, 91),
-    size: randomBetween(32, 72),
-    duration: randomBetween(5, 11) / Math.max(0.5, props.settings.speed),
+    size: randomBetween(props.settings.minSize, props.settings.maxSize),
+    duration: randomBetween(props.settings.minDuration, props.settings.maxDuration) / Math.max(0.5, props.settings.speed),
     opacity: props.settings.opacity / 100 * randomBetween(0.65, 1),
-    rotation: randomBetween(-18, 18),
+    rotation: randomBetween(-props.settings.maxRotation, props.settings.maxRotation),
   });
   visibleIcons.value = visibleIcons.value.slice(-props.settings.maxIcons);
 }
@@ -36,9 +36,24 @@ function schedule() {
   }
   spawn();
   if (reducedMotionQuery?.matches) return;
-  timer = window.setTimeout(schedule, randomBetween(1400, 2600) / Math.max(0.5, props.settings.speed));
+  timer = window.setTimeout(schedule, randomBetween(props.settings.minSpawnIntervalMs, props.settings.maxSpawnIntervalMs) / Math.max(0.5, props.settings.speed));
 }
-watch(() => [props.settings.enabled, props.settings.icons, props.settings.maxIcons, props.settings.opacity, props.settings.speed, props.settings.layer], schedule, { deep: true });
+watch(() => [
+  props.settings.enabled,
+  props.settings.icons,
+  props.settings.maxIcons,
+  props.settings.opacity,
+  props.settings.speed,
+  props.settings.layer,
+  props.settings.minSize,
+  props.settings.maxSize,
+  props.settings.minDuration,
+  props.settings.maxDuration,
+  props.settings.minSpawnIntervalMs,
+  props.settings.maxSpawnIntervalMs,
+  props.settings.maxRotation,
+  props.settings.floatDistance,
+], schedule, { deep: true });
 const layerZIndex = () => ({
   'behind-background': 0,
   'above-background': 1,
@@ -64,6 +79,7 @@ onBeforeUnmount(() => {
       '--icon-duration': `${item.duration}s`,
       '--icon-opacity': item.opacity,
       '--icon-rotation': `${item.rotation}deg`,
+      '--icon-float-distance': `${settings.floatDistance}px`,
     }">
       <TechnologyIcon :name="item.name" :icon="item.icon" :size="item.size" />
     </span>
@@ -74,6 +90,6 @@ onBeforeUnmount(() => {
 .floating-tech-icons { position: fixed; inset: 0; z-index: var(--floating-icons-z, 1); overflow: hidden; pointer-events: none; }
 .floating-tech-icons__item { position: absolute; top: var(--icon-top); left: var(--icon-left); width: var(--icon-size); height: var(--icon-size); opacity: var(--icon-opacity); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--cyan) 24%, transparent)); animation: float-tech var(--icon-duration) ease-in-out infinite alternate; }
 .floating-tech-icons__item :deep(.technology-icon), .floating-tech-icons__item :deep(.technology-icon-fallback) { width: 100% !important; height: 100% !important; object-fit: contain; }
-@keyframes float-tech { to { transform: translate3d(0, -22px, 0) rotate(var(--icon-rotation)); } }
+@keyframes float-tech { to { transform: translate3d(0, calc(-1 * var(--icon-float-distance, 22px)), 0) rotate(var(--icon-rotation)); } }
 @media (prefers-reduced-motion: reduce) { .floating-tech-icons__item { animation: none; } }
 </style>

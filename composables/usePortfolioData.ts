@@ -39,7 +39,22 @@ export interface PublicBackgroundSettings {
 }
 export interface FloatingIconItem { name: string; icon: string; }
 export type FloatingIconLayer = 'behind-background' | 'above-background' | 'foreground';
-export interface FloatingIconSettings { enabled: boolean; maxIcons: number; opacity: number; speed: number; layer: FloatingIconLayer; icons: FloatingIconItem[]; }
+export interface FloatingIconSettings {
+  enabled: boolean;
+  maxIcons: number;
+  opacity: number;
+  speed: number;
+  layer: FloatingIconLayer;
+  minSize: number;
+  maxSize: number;
+  minDuration: number;
+  maxDuration: number;
+  minSpawnIntervalMs: number;
+  maxSpawnIntervalMs: number;
+  maxRotation: number;
+  floatDistance: number;
+  icons: FloatingIconItem[];
+}
 export interface ProjectTechnologySlot { name: string; technologies: string[]; }
 export interface RichTextSettings { enabled: boolean; fields: { projectDescription: boolean; projectContext: boolean; projectOutcomes: boolean; }; }
 export interface ProjectDisplaySettings { defaultLayout: 'standard' | 'editorial'; showType: boolean; showYear: boolean; showMetrics: boolean; }
@@ -58,6 +73,14 @@ export const defaultFloatingIconSettings: FloatingIconSettings = {
   opacity: 20,
   speed: 1,
   layer: 'above-background',
+  minSize: 32,
+  maxSize: 72,
+  minDuration: 5,
+  maxDuration: 11,
+  minSpawnIntervalMs: 1400,
+  maxSpawnIntervalMs: 2600,
+  maxRotation: 18,
+  floatDistance: 22,
   icons: [
     { name: 'JavaScript', icon: 'logos:javascript' },
     { name: 'TypeScript', icon: 'logos:typescript-icon' },

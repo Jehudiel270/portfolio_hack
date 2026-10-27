@@ -9,7 +9,7 @@ import ProjectMetricsEditor from '~/components/ProjectMetricsEditor.vue';
 import AdminAnalyticsCharts from '~/components/AdminAnalyticsCharts.vue';
 import ProjectPreviewModal from '~/components/ProjectPreviewModal.vue';
 import { cloneCinematicIntroSettings } from '~/types/cinematic-intro';
-import type { Achievement, JourneyItem, Profile, Project, ProjectMedia, ProjectMetric, Skill, Technology, TechnologyCatalogItem } from '~/composables/usePortfolioData';
+import { defaultFloatingIconSettings, type Achievement, type JourneyItem, type Profile, type Project, type ProjectMedia, type ProjectMetric, type Skill, type Technology, type TechnologyCatalogItem } from '~/composables/usePortfolioData';
 import { socialNetworks } from '~/composables/socialNetworks';
 import { getAiTypeLabel } from '~/composables/aiCatalog';
 import { parseAiUseCasesInput } from '~/composables/aiFilters';
@@ -18,6 +18,7 @@ useSeoMeta({ title: 'Administration — Carrel DOSSOU', robots: 'noindex, nofoll
 type Resource = 'projects'|'journey'|'educations'|'certifications'|'achievements'|'testimonials'|'skills'|'technologies';
 const tabs: {id:string,label:string,icon:any,permission?:string}[]=[{id:'overview',label:'Vue d’ensemble',icon:LayoutDashboard,permission:'overview.view'},{id:'projects',label:'Projets',icon:Code2,permission:'projects.view'},{id:'journey',label:'Expériences & parcours',icon:Activity,permission:'journey.view'},{id:'educations',label:'Formations & diplômes',icon:GraduationCap,permission:'educations.view'},{id:'certifications',label:'Certifications',icon:ShieldCheck,permission:'certifications.view'},{id:'achievements',label:'Réalisations',icon:Activity,permission:'achievements.view'},{id:'testimonials',label:'Témoignages',icon:MessageSquareText,permission:'testimonials.view'},{id:'skills',label:'Compétences',icon:ShieldCheck,permission:'skills.view'},{id:'technologies',label:'Technologies',icon:Settings2,permission:'technologies.view'},{id:'ai',label:'IA & modèles',icon:Sparkles,permission:'technologies.view'},{id:'cv',label:'Importer un CV',icon:FileText,permission:'cv.preview'},{id:'profile',label:'Profil & image',icon:ImagePlus,permission:'profile.view'},{id:'messages',label:'Messages',icon:MessageSquareText,permission:'messages.view'},{id:'settings',label:'Réglages du site',icon:Settings2,permission:'settings.view'},{id:'analytics',label:'Statistiques',icon:Activity,permission:'analytics.view'},{id:'activity',label:'Journal admin',icon:FileText,permission:'activity.view'},{id:'accounts',label:'Comptes & permissions',icon:ShieldCheck}];
 const csrfHeaders=()=>({'x-admin-csrf':document.cookie.split('; ').find(cookie=>cookie.startsWith('carrel_admin_csrf='))?.slice('carrel_admin_csrf='.length)||''});
+const passwordVisible=ref(false);
 const loggedIn=ref(false);const checking=ref(true);const email=ref('');const password=ref('');const otpCode=ref('');const mfaSetupRequired=ref(false);const mfaSecret=ref('');const mfaUri=ref('');const recoveryCodes=ref<string[]>([]);const busy=ref(false);const error=ref('');const notice=ref('');const activeTab=ref('overview');
 const profile=reactive<Profile>({name:'',role:'',location:'',education:'',bio:'',avatarUrl:null,email:null,githubUrl:null,linkedinUrl:null,socialLinks:[],available:true});
 const isSuperAdmin=ref(false);const adminPermissions=ref<AdminPermissions>({});
@@ -29,6 +30,9 @@ const initialDataLoading=ref(false);
 const resourcePage=ref(1);
 const pageSize=24;
 const lists=reactive<Record<Resource,any[]>>({projects:[],journey:[],educations:[],certifications:[],achievements:[],testimonials:[],skills:[],technologies:[]});const messages=ref<any[]>([]);const editorOpen=ref(false);const projectPreviewOpen=ref(false);const editing=ref<any>(null);const editor=reactive<Record<string,any>>({});const uploadInput=ref<HTMLInputElement|null>(null);const projectImageInput=ref<HTMLInputElement|null>(null);const projectCoverDimensions=ref('');const bulkSkillsText=ref('');const bulkSkillsResult=ref<{created:number;total:number;errors:string[]}|null>(null);
+const projectTextFieldLabels:Record<string,string>={description:'Description du projet',caseContext:'Contexte & objectifs',outcomes:'Résultats',responsibilities:'Responsabilités',quote:'Témoignage'};
+const projectTextFieldHints:Record<string,string>={description:'Le résumé présenté sur la carte et la fiche publique.',caseContext:'Pourquoi le projet existait et les objectifs confiés.',outcomes:'Ce qui a été livré ou amélioré, sans gonfler les résultats.',responsibilities:'Une responsabilité ou mission par ligne.',quote:'Reproduis la citation exacte et ne publie qu’avec autorisation.'};
+function isRichTextProjectField(key:string){return activeTab.value==='projects'&&siteSettings.richText.enabled&&((key==='description'&&siteSettings.richText.fields.projectDescription)||(key==='caseContext'&&siteSettings.richText.fields.projectContext)||(key==='outcomes'&&siteSettings.richText.fields.projectOutcomes))}
 const unreadMessageCount=computed(()=>messages.value.filter(message=>!message.archivedAt&&message.processingStatus==='new').length);
 let messagePollTimer:ReturnType<typeof setInterval>|null=null;
 let knownMessageIds=new Set<number>();
@@ -46,7 +50,7 @@ const csvSkillReport=ref('');
 const cvFileInput=ref<HTMLInputElement|null>(null);
 const cvExtractedText=ref('');
 const cvFilename=ref('');
-const siteSettings=reactive({visiblePages:{parcours:true,projets:true,competences:true,ia:true,certifications:true,contact:true} as Record<string,boolean>,appointmentUrl:'',cvUrl:'',missionTypes:[] as string[],background:{showImage:true,showAmbient:false,showMaze:false,ambientIntensity:35,mazeIntensity:45,speed:1,darkCardOpacity:58},floatingIcons:{enabled:false,maxIcons:8,opacity:20,speed:1,layer:'above-background' as 'behind-background'|'above-background'|'foreground',icons:[{name:'JavaScript',icon:'logos:javascript'},{name:'TypeScript',icon:'logos:typescript-icon'},{name:'Vue.js',icon:'logos:vue'},{name:'GitHub',icon:'logos:github-icon'},{name:'Code',icon:'text:<>'},{name:'Terminal',icon:'text:$_'}]},technologySlots:[] as {name:string;technologies:string[]}[],richText:{enabled:false,fields:{projectDescription:false,projectContext:false,projectOutcomes:false}},projectDisplay:{defaultLayout:'standard' as 'standard'|'editorial',showType:true,showYear:true,showMetrics:true},contactRetentionDays:365,cinematicIntro:cloneCinematicIntroSettings()});
+const siteSettings=reactive({visiblePages:{parcours:true,projets:true,competences:true,ia:true,certifications:true,contact:true} as Record<string,boolean>,appointmentUrl:'',cvUrl:'',missionTypes:[] as string[],background:{showImage:true,showAmbient:false,showMaze:false,ambientIntensity:35,mazeIntensity:45,speed:1,darkCardOpacity:58},floatingIcons:{...defaultFloatingIconSettings,icons:[...defaultFloatingIconSettings.icons]},technologySlots:[] as {name:string;technologies:string[]}[],richText:{enabled:false,fields:{projectDescription:false,projectContext:false,projectOutcomes:false}},projectDisplay:{defaultLayout:'standard' as 'standard'|'editorial',showType:true,showYear:true,showMetrics:true},contactRetentionDays:365,cinematicIntro:cloneCinematicIntroSettings()});
 const missionTypesText=ref('');
 const serviceHealth=ref<{database:string;smtp:string;cloudinaryConfigured:boolean;checkedAt:string}|null>(null);
 const activityItems=ref<any[]>([]);
@@ -97,7 +101,7 @@ async function undoActivity(item:any){if(!confirm(`Annuler « ${item.summary} »
 async function loadMfaSetup(){const setup=await $fetch<{secret:string;uri:string}>('/api/admin/mfa/setup',{method:'POST',headers:csrfHeaders()});mfaSecret.value=setup.secret;mfaUri.value=setup.uri}
 async function applySessionState(){const state=await $fetch<{authenticated:boolean;setupRequired:boolean;isSuperAdmin?:boolean;permissions?:AdminPermissions}>('/api/admin/session');loggedIn.value=state.authenticated;mfaSetupRequired.value=state.setupRequired;isSuperAdmin.value=state.isSuperAdmin===true;adminPermissions.value=state.permissions||{};if(!visibleTabs.value.some(tab=>tab.id===activeTab.value))activeTab.value=visibleTabs.value[0]?.id||'';return state}
 async function checkSession(){checking.value=true;try{const state=await applySessionState();if(state.setupRequired)await loadMfaSetup();if(loggedIn.value)void loadAll()}catch{loggedIn.value=false;mfaSetupRequired.value=false;isSuperAdmin.value=false;adminPermissions.value={}}finally{checking.value=false}}
-async function login(){busy.value=true;error.value='';try{const result=await $fetch<{authenticated:boolean;setupRequired:boolean}>('/api/admin/login',{method:'POST',body:{email:email.value,password:password.value,otp:otpCode.value}});password.value='';otpCode.value='';mfaSetupRequired.value=result.setupRequired;if(result.setupRequired)await loadMfaSetup();else{await applySessionState();void loadAll()}}catch(e:any){error.value=e?.data?.statusMessage||'Connexion refusée. Vérifie tes identifiants et ton code de sécurité.'}finally{busy.value=false}}
+async function login(){busy.value=true;error.value='';try{const result=await $fetch<{authenticated:boolean;setupRequired:boolean}>('/api/admin/login',{method:'POST',body:{email:email.value,password:password.value,otp:otpCode.value}});password.value='';passwordVisible.value=false;otpCode.value='';mfaSetupRequired.value=result.setupRequired;if(result.setupRequired)await loadMfaSetup();else{await applySessionState();void loadAll()}}catch(e:any){error.value=e?.data?.statusMessage||'Connexion refusée. Vérifie tes identifiants et ton code de sécurité.'}finally{busy.value=false}}
 async function confirmMfaSetup(){busy.value=true;error.value='';try{const result=await $fetch<{authenticated:boolean;recoveryCodes:string[]}>('/api/admin/mfa/confirm',{method:'POST',body:{code:otpCode.value},headers:csrfHeaders()});otpCode.value='';mfaSetupRequired.value=false;recoveryCodes.value=result.recoveryCodes;await applySessionState()}catch(e:any){error.value=e?.data?.statusMessage||'Impossible de confirmer la double authentification.'}finally{busy.value=false}}
 function acknowledgeRecoveryCodes(){recoveryCodes.value=[];void loadAll()}
 async function loadAll(){error.value='';const initialLoad=!adminDataLoaded.value;if(initialLoad)initialDataLoading.value=true;try{const resources=Object.keys(lists) as Resource[];if(adminDataLoaded.value){const selectedResources:Resource[]=['projects','journey','educations','certifications','achievements','testimonials','skills','technologies','ai'].includes(activeTab.value)?[resourceForTab()]:[];await Promise.all(selectedResources.filter(resource=>hasPermission(`${resource}.view`)).map(async(resource)=>{lists[resource]=await $fetch<any[]>(`/api/admin/content/${resource}`)}));if(activeTab.value==='profile'&&hasPermission('profile.view'))Object.assign(profile,await $fetch<Profile>('/api/admin/profile'));if(activeTab.value==='messages'&&hasPermission('messages.view'))messages.value=await $fetch<any[]>('/api/admin/messages');if(activeTab.value==='settings'&&hasPermission('settings.view')){const settings=await $fetch<any>('/api/admin/settings');Object.assign(siteSettings,{...settings.public,background:{...siteSettings.background,...settings.public.background},contactRetentionDays:settings.contactRetentionDays});missionTypesText.value=siteSettings.missionTypes.join(', ')}await loadOperations();return}const allowedResources=resources.filter(resource=>hasPermission(`${resource}.view`));const[p,rows,messageRows,settings]=await Promise.all([hasPermission('profile.view')?$fetch<Profile>('/api/admin/profile'):Promise.resolve(null),Promise.all(allowedResources.map(async(resource)=>[resource,await $fetch<any[]>(`/api/admin/content/${resource}`)] as const)),hasPermission('messages.view')?$fetch<any[]>('/api/admin/messages'):Promise.resolve([]),hasPermission('settings.view')?$fetch<any>('/api/admin/settings'):Promise.resolve(null)]);if(p)Object.assign(profile,p);for(const[resource,items]of rows)lists[resource]=items;messages.value=messageRows;if(settings){Object.assign(siteSettings,{...settings.public,background:{...siteSettings.background,...settings.public.background},contactRetentionDays:settings.contactRetentionDays});missionTypesText.value=siteSettings.missionTypes.join(', ')}adminDataLoaded.value=true;await loadOperations()}catch(e:unknown){error.value=requestErrorMessage(e,'Impossible de charger les données de l’administration.')}finally{if(initialLoad)initialDataLoading.value=false}}
@@ -192,7 +196,7 @@ onBeforeUnmount(()=>{if(messagePollTimer)clearInterval(messagePollTimer)});
       <form @submit.prevent="confirmMfaSetup"><div class="field"><label for="admin-setup-otp">Code à 6 chiffres de l’application</label><input id="admin-setup-otp" v-model="otpCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="000000"></div><button type="submit" class="button" :disabled="busy"><ShieldCheck :size="15" />{{ busy?'Vérification…':'Confirmer et protéger le compte' }}</button></form>
       <div class="login-footer">// L’inscription reste bloquée jusqu’à validation du code</div>
     </section>
-    <section v-else-if="!loggedIn" class="window admin-login"><div class="window-bar"><div class="window-title"><span class="prompt">&gt;_</span><span>auth.owner</span></div><div class="window-controls"><i></i><i></i><i></i></div></div><div class="eyebrow">Zone réservée au propriétaire</div><h1>Accès administrateur</h1><p class="muted">Connecte-toi avec ton mot de passe et le code de ton application d’authentification.</p><div v-if="error" class="admin-alert error"><CircleAlert :size="15" style="vertical-align:middle;margin-right:6px" />{{ error }}</div><form @submit.prevent="login"><div class="field"><label for="admin-email">Adresse administrateur</label><input id="admin-email" v-model="email" type="email" autocomplete="username" required maxlength="320" placeholder="admin@exemple.com"></div><div class="field"><label for="admin-password">Mot de passe</label><input id="admin-password" v-model="password" type="password" autocomplete="current-password" required minlength="8" placeholder="••••••••••••"></div><div class="field"><label for="admin-otp">Code d’authentification ou code de secours</label><input id="admin-otp" v-model="otpCode" inputmode="text" autocomplete="one-time-code" maxlength="64" placeholder="000000 ou code de secours"></div><button type="submit" class="button" :disabled="busy"><ShieldCheck :size="15" />{{ busy?'Vérification…':'Ouvrir ma console' }}</button></form><div class="login-footer">// Mot de passe + authenticator · accès privé uniquement</div></section>
+    <section v-else-if="!loggedIn" class="window admin-login"><div class="window-bar"><div class="window-title"><span class="prompt">&gt;_</span><span>auth.owner</span></div><div class="window-controls"><i></i><i></i><i></i></div></div><div class="eyebrow">Zone réservée au propriétaire</div><h1>Accès administrateur</h1><p class="muted">Connecte-toi avec ton mot de passe et le code de ton application d’authentification.</p><div v-if="error" class="admin-alert error"><CircleAlert :size="15" style="vertical-align:middle;margin-right:6px" />{{ error }}</div><form @submit.prevent="login"><div class="field"><label for="admin-email">Adresse administrateur</label><input id="admin-email" v-model="email" type="email" autocomplete="username" required maxlength="320" placeholder="admin@exemple.com"></div><div class="field"><label for="admin-password">Mot de passe</label><div class="admin-password-control"><input id="admin-password" v-model="password" :type="passwordVisible?'text':'password'" autocomplete="current-password" required minlength="8" placeholder="••••••••••••"><button type="button" :aria-label="passwordVisible?'Masquer le mot de passe':'Afficher le mot de passe'" :aria-pressed="passwordVisible" @click="passwordVisible=!passwordVisible"><EyeOff v-if="passwordVisible" :size="17" /><Eye v-else :size="17" /></button></div></div><div class="field"><label for="admin-otp">Code d’authentification ou code de secours</label><input id="admin-otp" v-model="otpCode" inputmode="text" autocomplete="one-time-code" maxlength="64" placeholder="000000 ou code de secours"></div><button type="submit" class="button" :disabled="busy"><ShieldCheck :size="15" />{{ busy?'Vérification…':'Ouvrir ma console' }}</button></form><div class="login-footer">// Mot de passe + authenticator · accès privé uniquement</div></section>
     <div v-else class="admin-layout">
       <aside class="window admin-nav"><button v-for="tab in visibleTabs" :key="tab.id" :class="{selected:activeTab===tab.id}" @click="changeTab(tab.id)"><component :is="tab.icon" :size="15" />{{ tab.label }}<span v-if="tab.id==='messages'&&unreadMessageCount" class="admin-message-badge">{{ unreadMessageCount }}</span></button><button style="margin-top:10px;color:#ff9cac" @click="logout"><LogOut :size="15" />Déconnexion</button></aside>
       <main class="window admin-content">
@@ -303,11 +307,19 @@ onBeforeUnmount(()=>{if(messagePollTimer)clearInterval(messagePollTimer)});
           <p class="muted">Réglages éditoriaux et confidentialité. Les pages décochées disparaissent du menu public, sans supprimer leurs contenus.</p>
           <form class="admin-form" @submit.prevent="saveSiteSettings">
             <fieldset :disabled="!hasPermission('settings.update')" style="display:contents">
+            <details class="admin-settings-group" open>
+              <summary><span>Visibilité et liens</span><small>Navigation, CV, rendez-vous et conservation des messages</small></summary>
+              <div class="admin-settings-group__content">
             <div class="field full"><label>Pages visibles dans la navigation publique</label><div class="page-visibility-options"><label v-for="page in [{id:'parcours',label:'Parcours'},{id:'projets',label:'Projets'},{id:'competences',label:'Compétences'},{id:'ia',label:'IA'},{id:'certifications',label:'Certifications'},{id:'contact',label:'Contact'}]" :key="page.id"><input v-model="siteSettings.visiblePages[page.id]" type="checkbox">{{ page.label }}</label></div><small class="muted">L’accueil reste toujours accessible.</small></div>
             <div class="field"><label>URL du CV PDF public</label><input v-model="siteSettings.cvUrl" type="url" placeholder="https://…"></div>
             <div class="field"><label>Lien de prise de rendez-vous</label><input v-model="siteSettings.appointmentUrl" type="url" placeholder="https://…"></div>
             <div class="field full"><label>Types de mission affichés (séparés par des virgules)</label><input v-model="missionTypesText" placeholder="Stage, freelance, emploi"></div>
             <div class="field"><label>Conservation des messages (jours)</label><input v-model.number="siteSettings.contactRetentionDays" type="number" min="30" max="3650"></div>
+              </div>
+            </details>
+            <details class="admin-settings-group">
+              <summary><span>Fonds et décor</span><small>Image, labyrinthe, icônes flottantes et listes de technologies</small></summary>
+              <div class="admin-settings-group__content">
             <section class="window public-background-settings">
               <h2>Fond animé du site public</h2>
               <p class="muted">Le labyrinthe et le halo sont désactivés par défaut pour préserver la fluidité des visiteurs.</p>
@@ -331,6 +343,27 @@ onBeforeUnmount(()=>{if(messagePollTimer)clearInterval(messagePollTimer)});
                 <label v-if="siteSettings.floatingIcons.enabled" class="backdrop-range-option"><span>Opacité <strong>{{ siteSettings.floatingIcons.opacity }}%</strong></span><input v-model.number="siteSettings.floatingIcons.opacity" type="range" min="5" max="50" step="1"></label>
                 <label v-if="siteSettings.floatingIcons.enabled" class="backdrop-range-option"><span>Vitesse <strong>×{{ siteSettings.floatingIcons.speed.toFixed(1) }}</strong></span><input v-model.number="siteSettings.floatingIcons.speed" type="range" min="0.5" max="2" step="0.1"></label>
               </div>
+              <fieldset v-if="siteSettings.floatingIcons.enabled" class="floating-icon-tuners">
+                <legend>Dimensions et animation</legend>
+                <div class="floating-icon-tuning">
+                  <strong>Taille des icônes</strong>
+                  <label>Minimum<input v-model.number="siteSettings.floatingIcons.minSize" type="number" min="16" :max="siteSettings.floatingIcons.maxSize" step="1"> px</label>
+                  <label>Maximum<input v-model.number="siteSettings.floatingIcons.maxSize" type="number" :min="siteSettings.floatingIcons.minSize" max="128" step="1"> px</label>
+                </div>
+                <div class="floating-icon-tuning">
+                  <strong>Durée d’un mouvement</strong>
+                  <label>Minimum<input v-model.number="siteSettings.floatingIcons.minDuration" type="number" min="1" :max="siteSettings.floatingIcons.maxDuration" step="0.5"> s</label>
+                  <label>Maximum<input v-model.number="siteSettings.floatingIcons.maxDuration" type="number" :min="siteSettings.floatingIcons.minDuration" max="30" step="0.5"> s</label>
+                </div>
+                <div class="floating-icon-tuning">
+                  <strong>Pause entre les icônes</strong>
+                  <label>Minimum<input v-model.number="siteSettings.floatingIcons.minSpawnIntervalMs" type="number" min="250" :max="siteSettings.floatingIcons.maxSpawnIntervalMs" step="100"> ms</label>
+                  <label>Maximum<input v-model.number="siteSettings.floatingIcons.maxSpawnIntervalMs" type="number" :min="siteSettings.floatingIcons.minSpawnIntervalMs" max="20000" step="100"> ms</label>
+                </div>
+                <label class="backdrop-range-option"><span>Rotation maximale <strong>±{{ siteSettings.floatingIcons.maxRotation }}°</strong></span><input v-model.number="siteSettings.floatingIcons.maxRotation" type="range" min="0" max="45" step="1"></label>
+                <label class="backdrop-range-option"><span>Amplitude du flottement <strong>{{ siteSettings.floatingIcons.floatDistance }} px</strong></span><input v-model.number="siteSettings.floatingIcons.floatDistance" type="range" min="0" max="80" step="1"></label>
+                <p class="muted">Les valeurs min./max. sont choisies au hasard pour chaque icône. La vitesse globale ajuste les durées et les pauses.</p>
+              </fieldset>
               <div v-if="siteSettings.floatingIcons.enabled" class="admin-option-grid">
                 <label v-for="icon in floatingIconOptions" :key="icon.icon"><input type="checkbox" :checked="isFloatingIconSelected(icon.icon)" @change="toggleFloatingIcon(icon)"><TechnologyIcon :name="icon.name" :icon="icon.icon" size="22" /><span>{{ icon.name }}</span></label>
               </div>
@@ -353,6 +386,11 @@ onBeforeUnmount(()=>{if(messagePollTimer)clearInterval(messagePollTimer)});
               </fieldset>
               <button v-if="siteSettings.technologySlots.length<3" class="button secondary" type="button" @click="addTechnologySlot"><Plus :size="14" /> Créer une liste ({{ siteSettings.technologySlots.length }}/3)</button>
             </section>
+              </div>
+            </details>
+            <details class="admin-settings-group">
+              <summary><span>Projets et contenu</span><small>Présentation des fiches et options de mise en forme</small></summary>
+              <div class="admin-settings-group__content">
             <section class="window public-background-settings">
               <h2>Présentation des fiches projet</h2>
               <div class="public-backdrop-controls">
@@ -368,7 +406,14 @@ onBeforeUnmount(()=>{if(messagePollTimer)clearInterval(messagePollTimer)});
               <label class="backdrop-toggle-option"><input v-model="siteSettings.richText.enabled" type="checkbox"><span>Autoriser l’éditeur riche</span></label>
               <div v-if="siteSettings.richText.enabled" class="page-visibility-options"><label><input v-model="siteSettings.richText.fields.projectDescription" type="checkbox">Description du projet</label><label><input v-model="siteSettings.richText.fields.projectContext" type="checkbox">Contexte du projet</label><label><input v-model="siteSettings.richText.fields.projectOutcomes" type="checkbox">Résultats du projet</label></div>
             </section>
+              </div>
+            </details>
+            <details class="admin-settings-group">
+              <summary><span>Introduction cinématique</span><small>Durée, son, effets visuels et palette</small></summary>
+              <div class="admin-settings-group__content">
             <CinematicIntroSettingsPanel v-model="siteSettings.cinematicIntro" />
+              </div>
+            </details>
             <div v-if="hasPermission('settings.update')" class="field full"><button class="button" type="submit" :disabled="busy"><Save :size="14" /> Enregistrer les réglages</button></div>
             </fieldset>
           </form>
@@ -520,7 +565,23 @@ onBeforeUnmount(()=>{if(messagePollTimer)clearInterval(messagePollTimer)});
                 <div class="page-visibility-options"><label v-for="section in [{key:'showRole',label:'Rôle'},{key:'showContext',label:'Contexte'},{key:'showResponsibilities',label:'Responsabilités'},{key:'showOutcomes',label:'Résultats'},{key:'showMetrics',label:'Métriques'},{key:'showGallery',label:'Galerie'}]" :key="section.key"><input v-model="editor.caseLayout[section.key]" type="checkbox">{{ section.label }}</label></div>
               </details>
             </div>
-            <div v-else-if="['description','caseContext','outcomes','responsibilities','quote'].includes(String(key))" class="field full"><label>{{ ({description:'Description',caseContext:'Contexte & objectifs',outcomes:'Résultats (faits vérifiables)',responsibilities:'Responsabilités — une par ligne',quote:'Témoignage (citation exacte)'} as Record<string,string>)[String(key)] }}</label><small class="muted">{{ ({description:'Le résumé présenté sur la carte et la fiche publique.',caseContext:'Pourquoi le projet existait et les objectifs confiés.',outcomes:'Ce qui a été livré ou amélioré, sans gonfler les résultats.',responsibilities:'Une responsabilité ou mission par ligne.',quote:'Reproduis la citation exacte et ne publie qu’avec autorisation.'} as Record<string,string>)[String(key)] }}</small><RichTextEditor v-if="activeTab==='projects'&&siteSettings.richText.enabled&&((key==='description'&&siteSettings.richText.fields.projectDescription)||(key==='caseContext'&&siteSettings.richText.fields.projectContext)||(key==='outcomes'&&siteSettings.richText.fields.projectOutcomes))" v-model="editor[key]" :label="String(key)" :max-characters="3000" /><textarea v-else v-model="editor[key]" :maxlength="key==='quote'?2000:3000"></textarea></div>
+            <div v-else-if="['description','caseContext','outcomes','responsibilities','quote'].includes(String(key))" class="field full project-text-field">
+              <label v-if="!isRichTextProjectField(String(key))" :for="`project-text-${key}`">{{ projectTextFieldLabels[String(key)] }}</label>
+              <small v-if="!isRichTextProjectField(String(key))" class="muted">{{ projectTextFieldHints[String(key)] }}</small>
+              <RichTextEditor
+                v-if="isRichTextProjectField(String(key))"
+                v-model="editor[key]"
+                :label="projectTextFieldLabels[String(key)]"
+                :max-characters="3000"
+              />
+              <small v-if="isRichTextProjectField(String(key))" class="muted">{{ projectTextFieldHints[String(key)] }}</small>
+              <textarea
+                v-else
+                :id="`project-text-${key}`"
+                v-model="editor[key]"
+                :maxlength="key==='quote'?2000:3000"
+              ></textarea>
+            </div>
             <div v-else-if="key==='metrics'&&activeTab==='projects'" class="field full"><label>Métriques vérifiables</label><ProjectMetricsEditor v-model="editor.metrics" /></div>
             <div v-else-if="key==='skills'&&activeTab==='certifications'" class="field"><label>Compétences associées (séparées par des virgules)</label><input v-model="editor[key]" placeholder="Cloud, sécurité, développement"></div>
             <div v-else-if="key==='imageUrl'&&['projects','journey','educations','certifications'].includes(activeTab)" class="field full"><label>{{ activeTab==='projects'?'Visuel principal du projet':activeTab==='certifications'?'Badge ou preuve visuelle':activeTab==='educations'?'Visuel de la formation':'Image du parcours' }}</label><div :class="['project-image-admin',{'project-cover-admin':activeTab==='projects'}]"><img v-if="editor.imageUrl" :src="editor.imageUrl" alt="Aperçu du visuel" @load="activeTab==='projects'&&setProjectCoverDimensions($event)" @error="projectCoverDimensions='Image non chargée'"><span v-else class="muted">Aucune image choisie</span><div><input v-model="editor.imageUrl" type="url" placeholder="URL de l’image"><button type="button" class="button secondary" :disabled="busy" @click="projectImageInput?.click()"><Loader2 v-if="busy" :size="14" class="admin-spinner" /><UploadCloud v-else :size="14" />{{ busy?'Envoi…':'Téléverser une image' }}</button><input ref="projectImageInput" class="upload-input" type="file" accept="image/png,image/jpeg,image/webp" @change="uploadProjectImage"><small class="muted">JPEG, PNG ou WebP · 8 Mo maximum</small><small v-if="activeTab==='projects'" class="muted project-image-guidance">Couverture recommandée : 1200 × 675 px (16:9). Les captures de la galerie sont idéales autour de 1200 × 800 px (3:2).</small><small v-if="activeTab==='projects'&&projectCoverDimensions" class="muted">Dimensions de l’image : {{ projectCoverDimensions }}</small></div></div></div>

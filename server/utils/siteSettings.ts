@@ -32,6 +32,15 @@ export async function readPublicSiteSettings(): Promise<PublicSiteSettings> {
   const visiblePages = { ...defaultPublicSiteSettings.visiblePages, ...stored.visiblePages };
   const darkCardOpacity = Number(stored.background?.darkCardOpacity);
   const floatingIconLayer = stored.floatingIcons?.layer;
+  const normalizeNumber = (value: unknown, min: number, max: number, fallback: number, integer = false) => {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    const bounded = Math.min(max, Math.max(min, number));
+    return integer ? Math.round(bounded) : Math.round(bounded * 10) / 10;
+  };
+  const minSize = normalizeNumber(stored.floatingIcons?.minSize, 16, 128, defaultFloatingIconSettings.minSize, true);
+  const minDuration = normalizeNumber(stored.floatingIcons?.minDuration, 1, 30, defaultFloatingIconSettings.minDuration);
+  const minSpawnIntervalMs = normalizeNumber(stored.floatingIcons?.minSpawnIntervalMs, 250, 20_000, defaultFloatingIconSettings.minSpawnIntervalMs, true);
   delete visiblePages.realisations;
   return {
     ...defaultPublicSiteSettings,
@@ -55,6 +64,14 @@ export async function readPublicSiteSettings(): Promise<PublicSiteSettings> {
       layer: floatingIconLayer === 'behind-background' || floatingIconLayer === 'above-background' || floatingIconLayer === 'foreground'
         ? floatingIconLayer
         : defaultFloatingIconSettings.layer,
+      minSize,
+      maxSize: Math.max(minSize, normalizeNumber(stored.floatingIcons?.maxSize, 16, 128, defaultFloatingIconSettings.maxSize, true)),
+      minDuration,
+      maxDuration: Math.max(minDuration, normalizeNumber(stored.floatingIcons?.maxDuration, 1, 30, defaultFloatingIconSettings.maxDuration)),
+      minSpawnIntervalMs,
+      maxSpawnIntervalMs: Math.max(minSpawnIntervalMs, normalizeNumber(stored.floatingIcons?.maxSpawnIntervalMs, 250, 20_000, defaultFloatingIconSettings.maxSpawnIntervalMs, true)),
+      maxRotation: normalizeNumber(stored.floatingIcons?.maxRotation, 0, 45, defaultFloatingIconSettings.maxRotation, true),
+      floatDistance: normalizeNumber(stored.floatingIcons?.floatDistance, 0, 80, defaultFloatingIconSettings.floatDistance, true),
       icons: Array.isArray(stored.floatingIcons?.icons) ? stored.floatingIcons.icons.slice(0, 30) : defaultFloatingIconSettings.icons,
     },
     technologySlots: Array.isArray(stored.technologySlots) ? stored.technologySlots.slice(0, 3) : [],

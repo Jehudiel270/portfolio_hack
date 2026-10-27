@@ -8,6 +8,7 @@ import {
 } from '~/composables/usePortfolioData';
 import { requireAdmin } from '~/server/utils/auth';
 import { cinematicIntroSchema } from '~/server/utils/cinematicIntro';
+import { floatingIconSettingsSchema } from '~/server/utils/floatingIconSettings';
 import { defaultPublicSiteSettings, readPublicSiteSettings, readSiteSetting, writeSiteSetting } from '~/server/utils/siteSettings';
 import { sanitizeCinematicIntroSettings } from '~/types/cinematic-intro';
 
@@ -27,14 +28,7 @@ const schema = z.object({
       darkCardOpacity: z.coerce.number().int().min(40).max(85).optional(),
     }).optional(),
     cinematicIntro: cinematicIntroSchema.optional(),
-    floatingIcons: z.object({
-      enabled: z.boolean(),
-      maxIcons: z.coerce.number().int().min(1).max(16),
-      opacity: z.coerce.number().int().min(5).max(50),
-      speed: z.coerce.number().min(0.5).max(2),
-      layer: z.enum(['behind-background', 'above-background', 'foreground']).default('above-background'),
-      icons: z.array(z.object({ name: z.string().trim().min(1).max(80), icon: z.string().trim().min(1).max(120) })).max(30),
-    }).optional(),
+    floatingIcons: floatingIconSettingsSchema.optional(),
     technologySlots: z.array(z.object({
       name: z.string().trim().min(1).max(40),
       technologies: z.array(z.string().trim().min(1).max(100)).max(30),

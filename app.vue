@@ -7,7 +7,7 @@ import CinematicIntro from '~/components/CinematicIntro.vue';
 import { buildCinematicBootScript } from '~/composables/useCinematicIntro';
 import { sanitizeCinematicIntroSettings } from '~/types/cinematic-intro';
 import { usePublicSiteUrl } from '~/composables/usePublicSiteUrl';
-import { defaultPublicBackgroundSettings, demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
+import { defaultFloatingIconSettings, defaultPublicBackgroundSettings, demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
 
 const route = useRoute();
 const isAdminRoute = computed(() => route.path.startsWith('/admin'));
@@ -196,7 +196,7 @@ onBeforeUnmount(() => {
     :speed="publicBackground.speed"
     :style="publicBackgroundStyle"
   />
-  <FloatingTechIcons v-if="!isAdminRoute" :settings="portfolioData.publicSettings?.floatingIcons || { enabled: false, maxIcons: 8, opacity: 20, speed: 1, layer: 'above-background', icons: [] }" />
+  <FloatingTechIcons v-if="!isAdminRoute" :settings="portfolioData.publicSettings?.floatingIcons || defaultFloatingIconSettings" />
   <div v-if="!isAdminRoute" class="public-light-veil" aria-hidden="true"></div>
   <div v-if="!isAdminRoute" class="site-scroll-progress" aria-hidden="true"></div>
   <NuxtPage />

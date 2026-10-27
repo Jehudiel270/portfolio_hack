@@ -4,6 +4,36 @@ import { filterAiTools, parseAiUseCasesInput } from '../../composables/aiFilters
 import { filterProjects } from '../../composables/projectFilters';
 import type { Technology } from '../../composables/usePortfolioData';
 import { contactInputSchema } from './contactValidation';
+import { floatingIconSettingsSchema } from './floatingIconSettings';
+
+describe('floating icon settings validation', () => {
+  const legacySettings = {
+    enabled: false,
+    maxIcons: 8,
+    opacity: 20,
+    speed: 1,
+    layer: 'above-background',
+    icons: [],
+  };
+
+  it('fills in the new animation controls for previously saved settings', () => {
+    const parsed = floatingIconSettingsSchema.safeParse(legacySettings);
+    assert.equal(parsed.success, true);
+    if (!parsed.success) return;
+    assert.equal(parsed.data.minSize, 32);
+    assert.equal(parsed.data.maxSize, 72);
+    assert.equal(parsed.data.minDuration, 5);
+    assert.equal(parsed.data.maxDuration, 11);
+    assert.equal(parsed.data.minSpawnIntervalMs, 1400);
+    assert.equal(parsed.data.maxSpawnIntervalMs, 2600);
+  });
+
+  it('rejects reversed minimum and maximum animation settings', () => {
+    assert.equal(floatingIconSettingsSchema.safeParse({ ...legacySettings, minSize: 90, maxSize: 70 }).success, false);
+    assert.equal(floatingIconSettingsSchema.safeParse({ ...legacySettings, minDuration: 12, maxDuration: 5 }).success, false);
+    assert.equal(floatingIconSettingsSchema.safeParse({ ...legacySettings, minSpawnIntervalMs: 3000, maxSpawnIntervalMs: 2000 }).success, false);
+  });
+});
 
 describe('public portfolio filters', () => {
   const projects = [
