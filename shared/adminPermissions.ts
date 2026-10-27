@@ -65,6 +65,7 @@ export function normalizeAdminPermissions(value: unknown): AdminPermissions {
 export function resolveAdminPermission(path: string, method: string): AdminPermission | null {
   if (path === '/api/admin/ai/draft') return method === 'POST' ? 'ai.generate' : null;
   if (path === '/api/admin/ai/image') return method === 'POST' ? 'ai.generate' : null;
+  if (path === '/api/admin/ai/capture') return method === 'POST' ? 'ai.generate' : null;
   if (path === '/api/admin/ai/providers' || path === '/api/admin/ai/usage') return method === 'GET' ? 'ai.generate' : null;
   const contentMatch = path.match(/^\/api\/admin\/content\/(projects|journey|educations|certifications|achievements|testimonials|skills|technologies)(?:\/([^/]+))?(?:\/([^/]+))?$/);
   if (contentMatch) {

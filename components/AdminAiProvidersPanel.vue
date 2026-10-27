@@ -140,7 +140,7 @@ onMounted(() => {
         <small v-if="provider.configured&&!provider.managedInDashboard" class="muted">Clé héritée de l’environnement serveur. Enregistre-la ici pour la chiffrer dans le coffre.</small>
         <p>{{ provider.capabilities.join(' · ') }}</p>
         <label>Modèle / API
-          <input v-model.trim="models[provider.id]" :disabled="provider.id === 'github'" :placeholder="provider.defaultModel" maxlength="120">
+          <input v-model.trim="models[provider.id]" :disabled="provider.id === 'github'||provider.id==='screenshotone'" :placeholder="provider.defaultModel" maxlength="120">
         </label>
         <label v-if="provider.id !== 'github'">Clé API
           <input v-model="keys[provider.id]" type="password" autocomplete="new-password" :placeholder="provider.configured ? provider.managedInDashboard ? 'Laisser vide pour conserver la clé' : 'Clé d’environnement détectée · optionnel pour la chiffrer en base' : 'Coller la clé secrète ici'" maxlength="500">
@@ -149,16 +149,17 @@ onMounted(() => {
           <input v-model="keys[provider.id]" type="password" autocomplete="new-password" :placeholder="provider.configured ? 'Laisser vide pour conserver le jeton' : 'Facultatif · fine-grained read-only'" maxlength="500">
         </label>
         <small class="muted">{{ provider.balance }}</small>
-        <small v-if="provider.id !== 'github' && provider.configured" class="muted">Usage local · {{ usageFor(provider.id).requests }} requêtes · {{ usageFor(provider.id).input }} jetons entrée / {{ usageFor(provider.id).output }} sortie (30 jours). Le coût exact est calculé par le fournisseur.</small>
+        <small v-if="provider.id !== 'github'&&provider.id!=='screenshotone'&&provider.configured" class="muted">Usage local · {{ usageFor(provider.id).requests }} requêtes · {{ usageFor(provider.id).input }} jetons entrée / {{ usageFor(provider.id).output }} sortie (30 jours). Le coût exact est calculé par le fournisseur.</small>
+        <small v-if="provider.id==='screenshotone'&&provider.configured" class="muted">Usage local · {{ usageFor(provider.id).requests }} captures sur les 30 derniers jours.</small>
         <small v-if="testResults[provider.id]" class="admin-ai-provider-test" role="status"><CheckCircle2 :size="14" /> {{ testResults[provider.id] }}</small>
         <div class="admin-ai-provider-actions">
           <button class="button" type="button" :disabled="saving===provider.id" @click="save(provider)"><Loader2 v-if="saving===provider.id" :size="14" class="admin-spinner" /><Save v-else :size="14" /> Enregistrer</button>
-          <button class="button secondary" type="button" :disabled="!provider.configured||testing===provider.id" @click="test(provider)"><Loader2 v-if="testing===provider.id" :size="14" class="admin-spinner" /><CheckCircle2 v-else :size="14" /> Tester</button>
+          <button v-if="provider.id!=='screenshotone'" class="button secondary" type="button" :disabled="!provider.configured||testing===provider.id" @click="test(provider)"><Loader2 v-if="testing===provider.id" :size="14" class="admin-spinner" /><CheckCircle2 v-else :size="14" /> Tester</button>
           <button v-if="provider.managedInDashboard" class="icon-button danger" type="button" :disabled="saving===provider.id" :aria-label="`Retirer ${provider.label}`" @click="remove(provider)"><Trash2 :size="14" /></button>
         </div>
       </article>
     </div>
     <p v-else class="admin-empty">Chargement des fournisseurs…</p>
-    <p class="muted admin-ai-provider-footnote">Le test vérifie l’accès à l’API sans lancer de génération. Le solde en argent n’est pas exposé par les clés API standard de ces fournisseurs; aucun montant n’est estimé ou inventé. GitHub est utilisé uniquement pour lire le README du dépôt associé.</p>
+    <p class="muted admin-ai-provider-footnote">Le test vérifie l’accès à l’API sans lancer de génération; ScreenshotOne n’est validé qu’au moment d’une capture consentie. Le solde monétaire n’est pas exposé par les clés API standard; aucune valeur n’est inventée. GitHub sert uniquement à lire le README du dépôt associé.</p>
   </section>
 </template>

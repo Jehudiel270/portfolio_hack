@@ -30,6 +30,9 @@ export default defineEventHandler(async (event) => {
   if (provider === 'github' && model !== AI_PROVIDER_DETAILS.github.defaultModel) {
     throw createError({ statusCode: 400, statusMessage: 'Le modèle GitHub est défini par l’API officielle et ne peut pas être modifié.' });
   }
+  if (provider === 'screenshotone' && model !== AI_PROVIDER_DETAILS.screenshotone.defaultModel) {
+    throw createError({ statusCode: 400, statusMessage: 'Le modèle ScreenshotOne est défini par l’API officielle et ne peut pas être modifié.' });
+  }
   const keyToEncrypt = apiKey || (!existing ? environmentGeminiKey : '');
   const encryptedKey = keyToEncrypt ? encryptProviderKey(keyToEncrypt) : null;
   if (existing) {

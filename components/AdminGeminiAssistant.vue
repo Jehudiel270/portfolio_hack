@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { Check, Clock3, LoaderCircle, Sparkles, Undo2 } from 'lucide-vue-next';
-import { AI_DRAFT_FIELDS, type AiDraftResource, type AiProvider } from '~/shared/adminAi';
+import { AI_DRAFT_FIELDS, AI_TEXT_PROVIDERS, type AiDraftResource, type AiProvider, type AiTextProvider } from '~/shared/adminAi';
 
 const props = defineProps<{
   resource: AiDraftResource;
   current: Record<string, unknown>;
 }>();
+type ProviderOption = { id: AiProvider; label: string; configured: boolean; model: string };
+type TextProviderOption = Omit<ProviderOption, 'id'> & { id: AiTextProvider };
 const emit = defineEmits<{
   apply: [draft: Record<string, unknown>];
   restore: [snapshot: Record<string, unknown>];
@@ -17,8 +19,8 @@ const busy = ref(false);
 const error = ref('');
 const draft = ref<Record<string, unknown> | null>(null);
 const modelUsed = ref('');
-const providers = ref<Array<{ id: AiProvider; label: string; configured: boolean; model: string }>>([]);
-const selectedProvider = ref<Exclude<AiProvider, 'github'>>('gemini');
+const providers = ref<TextProviderOption[]>([]);
+const selectedProvider = ref<AiTextProvider>('gemini');
 const selectedProviderConfigured = computed(() => providers.value.some(provider => provider.id === selectedProvider.value && provider.configured));
 const selectedHistoryId = ref('');
 const draftHistory = ref<Array<{
@@ -74,10 +76,10 @@ const fieldLabels: Record<string, string> = {
 
 onMounted(async () => {
   try {
-    const result = await $fetch<{ providers: typeof providers.value }>('/api/admin/ai/providers');
-    providers.value = result.providers.filter((provider) => provider.id !== 'github');
+    const result = await $fetch<{ providers: ProviderOption[] }>('/api/admin/ai/providers');
+    providers.value = result.providers.filter((provider): provider is TextProviderOption => AI_TEXT_PROVIDERS.some(id => id === provider.id));
     const configured = providers.value.find((provider) => provider.configured);
-    if (configured) selectedProvider.value = configured.id as Exclude<AiProvider, 'github'>;
+    if (configured) selectedProvider.value = configured.id;
   } catch {
     error.value = 'Impossible de charger la liste des fournisseurs IA.';
   }

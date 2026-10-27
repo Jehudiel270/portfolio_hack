@@ -1,13 +1,12 @@
 import { createError, defineEventHandler, readBody } from 'h3';
 import { z } from 'zod';
-import { AI_DRAFT_FIELDS, type AiDraftResource, type AiProvider } from '~/shared/adminAi';
+import { AI_DRAFT_FIELDS, AI_TEXT_PROVIDERS, type AiDraftResource, type AiTextProvider } from '~/shared/adminAi';
 import { requireAdmin } from '~/server/utils/auth';
 import { enforceAiRequestLimit } from '~/server/utils/aiRateLimit';
 import { contentSchemas } from '~/server/utils/content';
 import { addProviderUsage, callTextProvider, getProviderCredential, readGithubReadme } from '~/server/utils/aiProviders';
 import { validatePublicHttpsUrl } from '~/server/utils/publicWebUrl';
 
-const textProviders = ['gemini', 'openai', 'anthropic', 'mistral', 'deepseek'] as const;
 const profileSchema = z.object({
   name: z.string().trim().min(1).max(120),
   role: z.string().trim().min(1).max(180),
@@ -17,7 +16,7 @@ const profileSchema = z.object({
 });
 const requestSchema = z.object({
   resource: z.enum(Object.keys(AI_DRAFT_FIELDS) as [AiDraftResource, ...AiDraftResource[]]),
-  provider: z.enum(textProviders).default('gemini'),
+  provider: z.enum(AI_TEXT_PROVIDERS).default('gemini'),
   instructions: z.string().trim().min(4).max(1000),
   current: z.record(z.string(), z.unknown()).default({}),
 });
@@ -80,7 +79,7 @@ export default defineEventHandler(async (event) => {
   });
 
   const result = await callTextProvider(provider, credential.apiKey, credential.model, systemInstruction, prompt, provider === 'gemini' ? contextUrl : undefined);
-  await addProviderUsage(provider as AiProvider, result.input, result.output);
+  await addProviderUsage(provider, result.input, result.output);
   let generatedDraft: unknown;
   try {
     generatedDraft = JSON.parse(result.text);

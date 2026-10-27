@@ -2,9 +2,10 @@ import { createCipheriv, createDecipheriv, randomBytes, hkdfSync } from 'node:cr
 import { createError } from 'h3';
 import { useRuntimeConfig } from '#imports';
 import { eq, gte, sql } from 'drizzle-orm';
-import { AI_PROVIDER_DETAILS, type AiProvider } from '~/shared/adminAi';
+import { AI_PROVIDER_DETAILS, type AiProvider, type AiTextProvider } from '~/shared/adminAi';
 import { getDatabase } from '~/server/utils/database';
 import { aiProviderCredentials, aiProviderUsage } from '~/server/utils/schema';
+import { buildScreenshotRequest, MAX_SITE_CAPTURE_BYTES, type SiteCaptureMode } from '~/server/utils/siteCapture';
 
 const providerNames = Object.keys(AI_PROVIDER_DETAILS) as AiProvider[];
 
@@ -84,15 +85,16 @@ function apiBase(provider: AiProvider) {
     case 'deepseek': return 'https://api.deepseek.com';
     case 'github': return 'https://api.github.com';
     case 'gemini': return 'https://generativelanguage.googleapis.com/v1beta';
+    case 'screenshotone': return 'https://api.screenshotone.com';
   }
 }
 
-async function providerFetch(url: string, init?: RequestInit) {
+async function providerFetch(url: string, init?: RequestInit, timeoutMs = 12_000, providerName = 'fournisseur IA') {
   try {
-    return await fetch(url, { ...init, signal: AbortSignal.timeout(12_000), redirect: 'error' });
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs), redirect: 'error' });
   } catch (error) {
     const timedOut = error instanceof Error && error.name === 'TimeoutError';
-    throw createError({ statusCode: 502, statusMessage: timedOut ? 'Le fournisseur IA ne répond pas à temps.' : 'Connexion au fournisseur IA impossible.' });
+    throw createError({ statusCode: 502, statusMessage: timedOut ? `${providerName} ne répond pas à temps.` : `Connexion à ${providerName} impossible.` });
   }
 }
 
@@ -105,6 +107,9 @@ async function providerJson<T>(response: Response, description: string): Promise
 }
 
 export async function checkProviderCredential(provider: AiProvider, apiKey: string) {
+  if (provider === 'screenshotone') {
+    throw createError({ statusCode: 400, statusMessage: 'La clé ScreenshotOne est vérifiée lors d’une capture consentie, car le test consommerait un quota.' });
+  }
   let url = '';
   let headers: Record<string, string> = {};
   if (provider === 'gemini') {
@@ -134,7 +139,7 @@ export async function checkProviderCredential(provider: AiProvider, apiKey: stri
   return { connected: true, quota: null };
 }
 
-export async function callTextProvider(provider: AiProvider, apiKey: string, model: string, system: string, prompt: string, contextUrl?: string) {
+export async function callTextProvider(provider: AiTextProvider, apiKey: string, model: string, system: string, prompt: string, contextUrl?: string) {
   const base = apiBase(provider);
   let response: Response;
   if (provider === 'gemini') {
@@ -187,6 +192,57 @@ export async function callTextProvider(provider: AiProvider, apiKey: string, mod
       ? { input: Number(payload.usage?.input_tokens) || 0, output: Number(payload.usage?.output_tokens) || 0 }
       : { input: Number(payload.usage?.prompt_tokens) || 0, output: Number(payload.usage?.completion_tokens) || 0 };
   return { text, ...usage };
+}
+
+export async function captureSiteScreenshot(apiKey: string, url: string, mode: SiteCaptureMode) {
+  const response = await providerFetch(`${apiBase('screenshotone')}/take`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-access-key': apiKey },
+    body: JSON.stringify(buildScreenshotRequest(url, mode)),
+  }, 30_000, 'ScreenshotOne');
+  if (!response.ok) {
+    let errorCode = '';
+    try {
+      const payload = await response.json() as { error_code?: unknown };
+      if (typeof payload.error_code === 'string') errorCode = payload.error_code;
+    } catch {
+      errorCode = '';
+    }
+    if (errorCode === 'access_key_invalid' || errorCode === 'access_key_required') {
+      throw createError({ statusCode: 502, statusMessage: 'ScreenshotOne a refusé la clé. Vérifie-la dans IA & modèles.' });
+    }
+    if (response.status === 429 || errorCode === 'screenshots_limit_reached' || errorCode === 'concurrency_limit_reached') {
+      throw createError({ statusCode: 429, statusMessage: 'Quota ou limite de captures atteint chez ScreenshotOne. Vérifie son tableau de bord avant de réessayer.' });
+    }
+    throw createError({ statusCode: 502, statusMessage: `ScreenshotOne a refusé la capture (HTTP ${response.status}). Vérifie la clé, le quota et l’URL publique.` });
+  }
+  if (!response.headers.get('content-type')?.toLowerCase().startsWith('image/jpeg')) {
+    throw createError({ statusCode: 502, statusMessage: 'ScreenshotOne n’a pas retourné une image JPEG exploitable.' });
+  }
+  const contentLength = Number(response.headers.get('content-length') || 0);
+  if (contentLength > MAX_SITE_CAPTURE_BYTES) {
+    throw createError({ statusCode: 413, statusMessage: 'La capture dépasse 4 Mo. Essaie le mode bureau ou mobile plutôt que pleine page.' });
+  }
+  if (!response.body) throw createError({ statusCode: 502, statusMessage: 'ScreenshotOne a retourné une image vide.' });
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_SITE_CAPTURE_BYTES) {
+        await reader.cancel();
+        throw createError({ statusCode: 413, statusMessage: 'La capture dépasse 4 Mo. Essaie le mode bureau ou mobile plutôt que pleine page.' });
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  if (!totalBytes) throw createError({ statusCode: 502, statusMessage: 'ScreenshotOne a retourné une image vide.' });
+  return Buffer.concat(chunks, totalBytes);
 }
 
 export async function generateOpenAiImage(apiKey: string, prompt: string) {
