@@ -3,9 +3,12 @@ import { onMounted, reactive, ref } from 'vue';
 import { Loader2, Plus, Save, ShieldCheck, UserRoundX } from 'lucide-vue-next';
 import { ADMIN_PERMISSION_GROUPS, type AdminPermissions } from '~/shared/adminPermissions';
 
+const emit = defineEmits<{ 'display-name-updated': [] }>();
+
 type AdminAccount = {
   id: number;
   email: string;
+  displayName: string;
   role: string;
   active: boolean;
   permissions: AdminPermissions;
@@ -16,6 +19,7 @@ type AdminAccount = {
 const accounts = ref<AdminAccount[]>([]);
 const drafts = reactive<Record<number, AdminPermissions>>({});
 const passwordResets = reactive<Record<number, string>>({});
+const displayName = ref('');
 const email = ref('');
 const password = ref('');
 const loading = ref(true);
@@ -72,15 +76,36 @@ async function createAccount() {
   try {
     await $fetch('/api/admin/accounts', {
       method: 'POST',
-      body: { email: email.value, password: password.value, permissions: {} },
+      body: { email: email.value, displayName: displayName.value, password: password.value, permissions: {} },
       headers: csrfHeaders(),
     });
+    displayName.value = '';
     email.value = '';
     password.value = '';
     notice.value = 'Compte créé sans accès aux sections. Attribue ses droits avant de transmettre ses identifiants.';
     await loadAccounts();
   } catch (cause: unknown) {
     error.value = requestErrorMessage(cause, 'La création du compte a échoué.');
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function saveDisplayName(account: AdminAccount) {
+  saving.value = true;
+  error.value = '';
+  notice.value = '';
+  try {
+    await $fetch(`/api/admin/accounts/${account.id}`, {
+      method: 'PATCH',
+      body: { displayName: account.displayName },
+      headers: csrfHeaders(),
+    });
+    notice.value = `Nom affiché mis à jour pour ${account.email}.`;
+    await loadAccounts();
+    emit('display-name-updated');
+  } catch (cause: unknown) {
+    error.value = requestErrorMessage(cause, 'La mise à jour du nom affiché a échoué.');
   } finally {
     saving.value = false;
   }
@@ -187,6 +212,9 @@ onMounted(loadAccounts);
     <form class="account-create" @submit.prevent="createAccount">
       <h3>Créer un compte administrateur</h3>
       <div class="account-create-fields">
+        <label>Nom affiché
+          <input v-model.trim="displayName" required maxlength="120" autocomplete="off" placeholder="Prénom et nom">
+        </label>
         <label>Adresse e-mail
           <input v-model.trim="email" type="email" required maxlength="320" autocomplete="off" placeholder="collaborateur@exemple.com">
         </label>
@@ -208,12 +236,21 @@ onMounted(loadAccounts);
         <details class="account-details">
           <summary class="account-card-summary">
             <span class="account-summary-copy">
-              <strong>{{ account.email }}</strong>
-              <small>{{ account.role === 'super_admin' ? 'Super-administrateur unique' : account.active ? 'Administrateur' : 'Compte désactivé' }} · {{ account.totpEnabled ? '2FA activée' : '2FA à configurer' }}</small>
+              <strong>{{ account.displayName || account.email }}</strong>
+              <small>{{ account.email }} · {{ account.role === 'super_admin' ? 'Super-administrateur unique' : account.active ? 'Administrateur' : 'Compte désactivé' }} · {{ account.totpEnabled ? '2FA activée' : '2FA à configurer' }}</small>
             </span>
             <span class="account-expand-label">Gérer le compte</span>
           </summary>
           <div class="account-details-content">
+            <div class="account-display-name">
+              <label>Nom affiché sur le tableau de bord
+                <input v-model.trim="account.displayName" required maxlength="120" autocomplete="off">
+              </label>
+              <button class="button secondary" type="button" :disabled="saving||!account.displayName.trim()" @click="saveDisplayName(account)">
+                <Loader2 v-if="saving" :size="14" class="spin" />
+                <Save v-else :size="14" /> Enregistrer le nom
+              </button>
+            </div>
             <header class="account-card-head">
               <button
                 v-if="account.role !== 'super_admin'"
@@ -267,6 +304,6 @@ onMounted(loadAccounts);
 </template>
 
 <style scoped>
-.accounts-panel{display:grid;gap:18px}.accounts-intro{display:flex;align-items:flex-start;gap:12px;color:var(--cyan)}.accounts-intro h2,.account-create h3{margin:0;color:var(--text)}.accounts-intro p,.account-card-head p,.owner-note{margin:5px 0 0;color:var(--muted)}.account-create,.account-card{padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--surface,rgba(255,255,255,.035))}.account-create-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;gap:12px;align-items:end;margin:14px 0 8px}.account-create label,.account-security-actions label{display:grid;gap:6px;color:var(--muted);font-size:.88rem}.account-create input,.account-security-actions input{min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--background,transparent);color:var(--text)}.account-create small{color:var(--muted)}.account-list{display:grid;gap:14px}.account-card-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.account-card-head strong{overflow-wrap:anywhere}.permission-groups{display:grid;gap:8px;margin-top:16px}.account-security-actions,.permission-bulk-actions,.permission-group-actions{display:flex;align-items:end;flex-wrap:wrap;gap:10px}.permission-bulk-actions{align-items:center;padding:12px;border:1px solid var(--line);border-radius:9px}.permission-bulk-actions strong{margin-right:auto;color:var(--text)}.permission-group{border:1px solid var(--line);border-radius:9px;padding:10px 12px}.permission-group summary{cursor:pointer;font-weight:600}.permission-group-actions{align-items:center;padding-top:10px}.permission-group-actions .button,.permission-bulk-actions .button{padding:6px 10px;font-size:.82rem}.permission-options{display:flex;flex-wrap:wrap;gap:10px 18px;padding-top:12px}.permission-options label{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:.88rem}.owner-note{padding:12px;border-radius:8px;background:rgba(0,210,255,.07)}.account-message{padding:12px;border-radius:9px}.account-message.error{color:#ffb5bf;background:rgba(255,70,90,.1)}.account-message.success{color:#9df0c2;background:rgba(60,210,130,.1)}.account-loading,.account-empty{display:flex;align-items:center;gap:8px;color:var(--muted)}.spin{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(max-width:760px){.account-create-fields{grid-template-columns:1fr}.account-card-head{align-items:flex-start;flex-direction:column}.permission-bulk-actions strong{width:100%}}
+.accounts-panel{display:grid;gap:18px}.accounts-intro{display:flex;align-items:flex-start;gap:12px;color:var(--cyan)}.accounts-intro h2,.account-create h3{margin:0;color:var(--text)}.accounts-intro p,.account-card-head p,.owner-note{margin:5px 0 0;color:var(--muted)}.account-create,.account-card{padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--surface,rgba(255,255,255,.035))}.account-create-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;gap:12px;align-items:end;margin:14px 0 8px}.account-create label,.account-security-actions label,.account-display-name label{display:grid;gap:6px;color:var(--muted);font-size:.88rem}.account-create input,.account-security-actions input,.account-display-name input{min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--background,transparent);color:var(--text)}.account-create small{color:var(--muted)}.account-list{display:grid;gap:14px}.account-card-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.account-card-head strong{overflow-wrap:anywhere}.account-display-name{display:flex;align-items:end;gap:10px;margin-bottom:16px}.account-display-name label{flex:1;min-width:0}.permission-groups{display:grid;gap:8px;margin-top:16px}.account-security-actions,.permission-bulk-actions,.permission-group-actions{display:flex;align-items:end;flex-wrap:wrap;gap:10px}.permission-bulk-actions{align-items:center;padding:12px;border:1px solid var(--line);border-radius:9px}.permission-bulk-actions strong{margin-right:auto;color:var(--text)}.permission-group{border:1px solid var(--line);border-radius:9px;padding:10px 12px}.permission-group summary{cursor:pointer;font-weight:600}.permission-group-actions{align-items:center;padding-top:10px}.permission-group-actions .button,.permission-bulk-actions .button{padding:6px 10px;font-size:.82rem}.permission-options{display:flex;flex-wrap:wrap;gap:10px 18px;padding-top:12px}.permission-options label{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:.88rem}.owner-note{padding:12px;border-radius:8px;background:rgba(0,210,255,.07)}.account-message{padding:12px;border-radius:9px}.account-message.error{color:#ffb5bf;background:rgba(255,70,90,.1)}.account-message.success{color:#9df0c2;background:rgba(60,210,130,.1)}.account-loading,.account-empty{display:flex;align-items:center;gap:8px;color:var(--muted)}.spin{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(max-width:760px){.account-create-fields{grid-template-columns:1fr}.account-card-head{align-items:flex-start;flex-direction:column}.account-display-name{align-items:stretch;flex-direction:column}.permission-bulk-actions strong{width:100%}}
 .account-card{padding:0}.account-card-summary{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px;cursor:pointer;list-style:none}.account-card-summary::-webkit-details-marker{display:none}.account-summary-copy{display:grid;min-width:0;gap:4px}.account-summary-copy strong{overflow-wrap:anywhere;color:var(--text)}.account-summary-copy small,.account-expand-label{color:var(--muted)}.account-expand-label{display:flex;align-items:center;gap:8px;flex:none}.account-expand-label::after{content:'+';color:var(--cyan);font-weight:700}.account-details[open] .account-expand-label::after{content:'-'} .account-details-content{padding:0 16px 16px}.account-card-head{justify-content:flex-end}
 </style>

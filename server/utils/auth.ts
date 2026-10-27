@@ -56,6 +56,7 @@ async function getSession(event: H3Event) {
     .select({
       id: admins.id,
       email: admins.email,
+      displayName: admins.displayName,
       role: admins.role,
       active: admins.active,
       permissions: admins.permissions,
@@ -82,6 +83,7 @@ export async function getAdminSessionState(event: H3Event) {
     setupRequired,
     ...(authenticated ? {
       email: session.admin.email,
+      displayName: session.admin.displayName,
       role: isSuperAdmin(session.admin) ? 'super_admin' : 'admin',
       isSuperAdmin: isSuperAdmin(session.admin),
       permissions: normalizeAdminPermissions(session.admin.permissions),

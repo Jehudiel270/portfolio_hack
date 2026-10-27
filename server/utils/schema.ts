@@ -6,6 +6,7 @@ import type { SocialLink } from '~/composables/socialNetworks';
 export const admins = pgTable('portfolio_admins', {
   id: serial('id').primaryKey(),
   email: varchar('email', { length: 320 }).notNull().unique(),
+  displayName: varchar('display_name', { length: 120 }).notNull().default(''),
   passwordHash: text('password_hash').notNull(),
   role: varchar('role', { length: 24 }).notNull().default('admin'),
   active: boolean('active').notNull().default(true),

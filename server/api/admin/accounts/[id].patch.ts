@@ -12,7 +12,8 @@ const schema = z.object({
   password: z.string().min(12).max(256).optional(),
   resetMfa: z.boolean().optional(),
   permissions: z.record(z.string(), z.boolean()).optional(),
-}).refine((value) => value.active !== undefined || value.password !== undefined || value.resetMfa !== undefined || value.permissions !== undefined);
+  displayName: z.string().trim().min(1).max(120).optional(),
+}).refine((value) => value.active !== undefined || value.password !== undefined || value.resetMfa !== undefined || value.permissions !== undefined || value.displayName !== undefined);
 
 function validatePermissions(value: Record<string, boolean>) {
   const permissions = normalizeAdminPermissions(value);
@@ -33,7 +34,9 @@ export default defineEventHandler(async (event) => {
   const parsed = schema.safeParse(await readBody(event));
   if (!parsed.success) throw createError({ statusCode: 400, statusMessage: 'Modifications du compte invalides.' });
   const [target] = await getDatabase().select({ id: admins.id, role: admins.role }).from(admins).where(eq(admins.id, id)).limit(1);
-  if (!target || target.role === 'super_admin') throw createError({ statusCode: 404, statusMessage: 'Compte administrateur introuvable.' });
+  if (!target || (target.role === 'super_admin' && (parsed.data.active !== undefined || parsed.data.password !== undefined || parsed.data.resetMfa !== undefined || parsed.data.permissions !== undefined))) {
+    throw createError({ statusCode: 404, statusMessage: 'Compte administrateur introuvable.' });
+  }
 
   const update: {
     active?: boolean;
@@ -42,19 +45,24 @@ export default defineEventHandler(async (event) => {
     totpEnabled?: boolean;
     totpSecretCiphertext?: string | null;
     recoveryCodeHashes?: string[];
+    displayName?: string;
     sessionVersion?: SQL;
   } = {};
   if (parsed.data.active !== undefined) update.active = parsed.data.active;
   if (parsed.data.password) update.passwordHash = await bcrypt.hash(parsed.data.password, 12);
   if (parsed.data.permissions) update.permissions = validatePermissions(parsed.data.permissions);
+  if (parsed.data.displayName !== undefined) update.displayName = parsed.data.displayName;
   if (parsed.data.resetMfa) {
     update.totpEnabled = false;
     update.totpSecretCiphertext = null;
     update.recoveryCodeHashes = [];
   }
-  update.sessionVersion = sql`${admins.sessionVersion} + 1`;
-  const [updated] = await getDatabase().update(admins).set(update).where(and(eq(admins.id, id), ne(admins.role, 'super_admin')))
-    .returning({ id: admins.id, email: admins.email, role: admins.role, active: admins.active, permissions: admins.permissions, totpEnabled: admins.totpEnabled, createdAt: admins.createdAt });
+  if (parsed.data.active !== undefined || parsed.data.password || parsed.data.permissions || parsed.data.resetMfa) {
+    update.sessionVersion = sql`${admins.sessionVersion} + 1`;
+  }
+  const accountFilter = target.role === 'super_admin' ? eq(admins.id, id) : and(eq(admins.id, id), ne(admins.role, 'super_admin'));
+  const [updated] = await getDatabase().update(admins).set(update).where(accountFilter)
+    .returning({ id: admins.id, email: admins.email, displayName: admins.displayName, role: admins.role, active: admins.active, permissions: admins.permissions, totpEnabled: admins.totpEnabled, createdAt: admins.createdAt });
   if (!updated) throw createError({ statusCode: 404, statusMessage: 'Compte administrateur introuvable.' });
   return { ...updated, permissions: normalizeAdminPermissions(updated.permissions) };
 });
