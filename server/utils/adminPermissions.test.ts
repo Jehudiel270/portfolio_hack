@@ -27,6 +27,8 @@ test('admin permission resolution covers operational actions', () => {
   assert.equal(resolveAdminPermission('/api/admin/services', 'GET'), 'services.view');
   assert.equal(resolveAdminPermission('/api/admin/upload', 'POST'), 'uploads.create');
   assert.equal(resolveAdminPermission('/api/admin/cv/preview', 'POST'), 'cv.preview');
+  assert.equal(resolveAdminPermission('/api/admin/ai/draft', 'POST'), 'ai.generate');
+  assert.equal(resolveAdminPermission('/api/admin/ai/draft', 'GET'), null);
 });
 
 test('admin permission resolution fails closed for unknown routes and methods', () => {

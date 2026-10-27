@@ -39,6 +39,8 @@ export default defineNuxtConfig({
     smtpPassword: process.env.SMTP_PASSWORD || "",
     smtpFrom: process.env.SMTP_FROM || "",
     contactFallbackTo: process.env.CONTACT_FALLBACK_TO || "",
+    geminiApiKey: process.env.GEMINI_API_KEY || "",
+    geminiModel: process.env.GEMINI_MODEL || "gemini-3.6-flash",
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || "",
     },

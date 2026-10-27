@@ -26,7 +26,7 @@ function iconForTag(tag: string) {
     :key="tag"
     class="tag technology-tag"
   >
-    <TechnologyIcon :name="tag" :icon="iconForTag(tag)" :size="iconSize" />
+    <TechnologyIcon :name="tag" :icon="iconForTag(tag)" :size="iconSize" eager />
     <span>{{ tag }}</span>
   </span>
 </template>

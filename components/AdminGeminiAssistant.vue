@@ -1,0 +1,189 @@
+<script setup lang="ts">
+import { ref } from 'vue';
+import { Check, Clock3, LoaderCircle, Sparkles, Undo2 } from 'lucide-vue-next';
+import { AI_DRAFT_FIELDS, type AiDraftResource } from '~/shared/adminAi';
+
+const props = defineProps<{
+  resource: AiDraftResource;
+  current: Record<string, unknown>;
+}>();
+const emit = defineEmits<{
+  apply: [draft: Record<string, unknown>];
+  restore: [snapshot: Record<string, unknown>];
+}>();
+const instructions = ref('');
+const consent = ref(false);
+const busy = ref(false);
+const error = ref('');
+const draft = ref<Record<string, unknown> | null>(null);
+const modelUsed = ref('');
+const selectedHistoryId = ref('');
+const draftHistory = ref<Array<{
+  id: number;
+  createdAt: string;
+  instructions: string;
+  draft: Record<string, unknown>;
+  appliedCount: number;
+}>>([]);
+const appliedSnapshots = ref<Array<{ historyId: number; values: Record<string, unknown> }>>([]);
+let nextHistoryId = 0;
+const fieldLabels: Record<string, string> = {
+  title: 'Titre',
+  slug: 'Identifiant URL',
+  description: 'Description',
+  tags: 'Technologies',
+  projectType: 'Type de projet',
+  caseRole: 'Rôle',
+  caseContext: 'Contexte',
+  responsibilities: 'Responsabilités',
+  outcomes: 'Résultats',
+  role: 'Poste',
+  organization: 'Organisation',
+  location: 'Lieu',
+  startDate: 'Date de début',
+  endDate: 'Date de fin',
+  institution: 'Établissement',
+  degree: 'Diplôme',
+  status: 'Statut',
+  issuer: 'Organisme',
+  issuedAt: 'Date d’obtention',
+  expiresAt: 'Date d’expiration',
+  skills: 'Compétences',
+  date: 'Date',
+  name: 'Nom',
+  icon: 'Icône',
+  level: 'Niveau',
+  category: 'Catégorie',
+  aiType: 'Type IA',
+  aiAccessMode: 'Mode d’accès',
+  aiUseCases: 'Usages',
+  aiVerifiedAt: 'Date de vérification',
+};
+
+async function generateDraft() {
+  error.value = '';
+  draft.value = null;
+  if (!consent.value) {
+    error.value = 'Confirme l’envoi des champs sélectionnés à Google avant de continuer.';
+    return;
+  }
+  if (instructions.value.trim().length < 4) {
+    error.value = 'Décris en quelques mots ce que tu veux préparer.';
+    return;
+  }
+  busy.value = true;
+  try {
+    const cookie = document.cookie.split('; ').find((item) => item.startsWith('carrel_admin_csrf='));
+    const csrf = cookie?.slice('carrel_admin_csrf='.length) || '';
+    const current = Object.fromEntries(Object.entries(props.current).filter(([, value]) =>
+      value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0),
+    ));
+    const response = await $fetch<{ draft: Record<string, unknown>; model: string }>('/api/admin/ai/draft', {
+      method: 'POST',
+      body: { resource: props.resource, instructions: instructions.value.trim(), current },
+      headers: { 'x-admin-csrf': csrf },
+    });
+    draft.value = response.draft;
+    modelUsed.value = response.model;
+    const historyId = nextHistoryId++;
+    selectedHistoryId.value = String(historyId);
+    draftHistory.value.unshift({
+      id: historyId,
+      createdAt: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      instructions: instructions.value.trim(),
+      draft: response.draft,
+      appliedCount: 0,
+    });
+    draftHistory.value = draftHistory.value.slice(0, 10);
+  } catch (cause: unknown) {
+    if (cause && typeof cause === 'object') {
+      const request = cause as { data?: { statusMessage?: unknown }; statusMessage?: unknown };
+      const message = request.data?.statusMessage || request.statusMessage;
+      error.value = typeof message === 'string' ? message : 'Gemini n’a pas pu préparer le brouillon.';
+    } else {
+      error.value = 'Gemini n’a pas pu préparer le brouillon.';
+    }
+  } finally {
+    busy.value = false;
+  }
+}
+
+function displayValue(value: unknown) {
+  return Array.isArray(value) ? value.join(', ') : String(value ?? '');
+}
+
+function selectHistory(entry: (typeof draftHistory.value)[number]) {
+  selectedHistoryId.value = String(entry.id);
+  draft.value = entry.draft;
+  instructions.value = entry.instructions;
+}
+
+function applyDraft() {
+  if (!draft.value) return;
+  const historyId = Number(selectedHistoryId.value);
+  appliedSnapshots.value.push({
+    historyId,
+    values: Object.fromEntries(Object.entries(props.current).map(([key, value]) => [
+      key,
+      Array.isArray(value) ? [...value] : value,
+    ])),
+  });
+  const entry = draftHistory.value.find((item) => item.id === historyId);
+  if (entry) entry.appliedCount += 1;
+  emit('apply', draft.value);
+  error.value = '';
+}
+
+function undoLastApply() {
+  const previous = appliedSnapshots.value.pop();
+  if (!previous) return;
+  const entry = draftHistory.value.find((item) => item.id === previous.historyId);
+  if (entry) entry.appliedCount = Math.max(0, entry.appliedCount - 1);
+  emit('restore', previous.values);
+}
+
+const allowedFields = AI_DRAFT_FIELDS[props.resource] as readonly string[];
+</script>
+
+<template>
+  <section class="admin-gemini-assistant">
+    <div class="admin-gemini-heading">
+      <div><h3><Sparkles :size="16" /> Assistant Gemini</h3><p>Prépare un brouillon pour cette fiche. Tu le relis et l’enregistres toi-même.</p></div>
+      <span class="admin-gemini-model">{{ modelUsed || 'Gemini' }}</span>
+    </div>
+    <label class="admin-gemini-prompt">Que veux-tu améliorer ou compléter ?
+      <textarea v-model="instructions" rows="3" maxlength="1000" placeholder="Ex. Reformule la description pour mettre l’accent sur les objectifs et le travail réellement réalisé."></textarea>
+    </label>
+    <label class="admin-gemini-consent"><input v-model="consent" type="checkbox"><span>J’accepte d’envoyer ma demande et les champs de cette fiche à Google Gemini pour générer un brouillon.</span></label>
+    <p class="admin-gemini-privacy">Gemini remplit les champs du formulaire après ton accord. Tu peux relire, annuler ou modifier le résultat avant d’enregistrer. L’historique est conservé pendant l’édition de cette fiche; rien n’est sauvegardé automatiquement.</p>
+    <p v-if="error" class="admin-alert error" role="alert">{{ error }}</p>
+    <button class="button secondary" type="button" :disabled="busy||!consent||instructions.trim().length<4" @click="generateDraft">
+      <LoaderCircle v-if="busy" :size="15" class="admin-spinner" /><Sparkles v-else :size="15" />{{ busy?'Gemini prépare le brouillon…':'Générer un brouillon' }}
+    </button>
+    <div v-if="draft" class="admin-gemini-draft" aria-live="polite">
+      <strong>Brouillon à relire</strong>
+      <dl>
+        <div v-for="key in allowedFields.filter((field)=>Object.hasOwn(draft || {},field))" :key="key">
+          <dt>{{ fieldLabels[key]||key }}</dt><dd>{{ displayValue(draft[key]) }}</dd>
+        </div>
+      </dl>
+      <div class="admin-gemini-draft-actions">
+        <button class="button" type="button" @click="applyDraft"><Check :size="15" /> Appliquer au formulaire</button>
+        <button v-if="appliedSnapshots.length" class="button secondary" type="button" @click="undoLastApply"><Undo2 :size="15" /> Annuler la dernière application</button>
+      </div>
+    </div>
+    <div v-if="draftHistory.length" class="admin-gemini-history">
+      <strong><Clock3 :size="14" /> Historique de cette édition</strong>
+      <button
+        v-for="entry in draftHistory"
+        :key="entry.id"
+        type="button"
+        :class="{ 'is-selected': selectedHistoryId === String(entry.id) }"
+        @click="selectHistory(entry)"
+      >
+        <span>{{ entry.createdAt }} · {{ entry.instructions }}</span>
+        <small>{{ entry.appliedCount ? `Appliqué ${entry.appliedCount} fois` : 'Brouillon non appliqué' }}</small>
+      </button>
+    </div>
+  </section>
+</template>

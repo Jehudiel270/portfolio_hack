@@ -55,7 +55,7 @@ function acceptDroppedFiles(event: DragEvent) {
       <span>Dépose tes images pour les ajouter à la galerie</span>
       <small>JPEG, PNG ou WebP · 8 Mo maximum par image</small>
     </div>
-    <article v-for="(media, index) in modelValue" :key="index" :class="['gallery-editor-item', { 'is-dragging': draggedIndex===index, 'is-drop-target': dropTargetIndex===index }]" draggable="true" @dragstart="draggedIndex=index" @dragenter.prevent="dropTargetIndex=index" @dragover.prevent="dropTargetIndex=index" @drop.prevent="dropAt(index)" @dragend="draggedIndex=null;dropTargetIndex=null">
+    <article v-for="(media, index) in modelValue" :key="index" :class="['gallery-editor-item', { 'has-preview': !!media.url, 'is-dragging': draggedIndex===index, 'is-drop-target': dropTargetIndex===index }]" draggable="true" @dragstart="draggedIndex=index" @dragenter.prevent="dropTargetIndex=index" @dragover.prevent="dropTargetIndex=index" @drop.prevent="dropAt(index)" @dragend="draggedIndex=null;dropTargetIndex=null">
       <div v-if="media.url" class="gallery-editor-preview">
         <img :src="media.url" :alt="media.alt || `Aperçu de la capture ${index + 1}`" loading="lazy">
         <span>{{ media.caption || `Capture ${index + 1}` }}</span>
@@ -70,9 +70,11 @@ function acceptDroppedFiles(event: DragEvent) {
           <button class="icon-button danger" type="button" :aria-label="`Supprimer la capture ${index+1}`" @click="remove(index)"><Trash2 :size="14" /></button>
         </div>
       </div>
-      <label class="field"><span>URL de l’image</span><input :value="media.url" type="url" required placeholder="https://…" @input="update(index,'url',($event.target as HTMLInputElement).value)"></label>
-      <label class="field"><span>Texte alternatif</span><input :value="media.alt" maxlength="250" placeholder="Décris l’image pour les lecteurs d’écran" @input="update(index,'alt',($event.target as HTMLInputElement).value)"></label>
-      <label class="field"><span>Légende (facultatif)</span><input :value="media.caption" maxlength="500" placeholder="Contexte de cette capture" @input="update(index,'caption',($event.target as HTMLInputElement).value)"></label>
+      <div class="gallery-editor-fields">
+        <label class="field"><span>URL de l’image</span><input :value="media.url" type="url" placeholder="https://…" @input="update(index,'url',($event.target as HTMLInputElement).value)"></label>
+        <label class="field"><span>Texte alternatif</span><input :value="media.alt" maxlength="250" placeholder="Décris l’image pour les lecteurs d’écran" @input="update(index,'alt',($event.target as HTMLInputElement).value)"></label>
+        <label class="field"><span>Légende (facultatif)</span><input :value="media.caption" maxlength="500" placeholder="Contexte de cette capture" @input="update(index,'caption',($event.target as HTMLInputElement).value)"></label>
+      </div>
     </article>
     <p v-if="!modelValue.length" class="muted">Aucune capture. Tu peux téléverser plusieurs images ou ajouter leurs URL.</p>
   </section>

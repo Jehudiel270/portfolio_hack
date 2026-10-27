@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { createIconifyUrl } from '~/composables/iconify';
 
-const props = defineProps<{ name: string; icon?: string | null; size?: number | string }>();
+const props = withDefaults(defineProps<{ name: string; icon?: string | null; size?: number | string; eager?: boolean }>(), { eager: false });
 const failed = ref(false);
 const aliases: Record<string, string> = {
   'angular': 'angular-icon',
@@ -92,6 +92,6 @@ watch(iconSource, () => { failed.value = false; });
 </script>
 
 <template>
-  <img v-if="iconSource && !failed" class="technology-icon" :src="iconSource" :alt="`${name} logo`" :width="size || 22" :height="size || 22" loading="lazy" referrerpolicy="no-referrer" @error="failed = true">
+  <img v-if="iconSource && !failed" class="technology-icon" :src="iconSource" :alt="`${name} logo`" :width="size || 22" :height="size || 22" :loading="eager?'eager':'lazy'" referrerpolicy="no-referrer" @error="failed = true">
   <span v-else class="technology-icon-fallback" :style="{ width: `${size || 22}px`, height: `${size || 22}px` }" aria-hidden="true">{{ fallback }}</span>
 </template>

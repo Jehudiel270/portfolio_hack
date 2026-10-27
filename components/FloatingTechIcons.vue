@@ -56,7 +56,7 @@ watch(() => [
 ], schedule, { deep: true });
 const layerZIndex = () => ({
   'behind-background': 0,
-  'above-background': 1,
+  'above-background': 3,
   foreground: 20,
 }[props.settings.layer]);
 onMounted(() => {
@@ -81,7 +81,7 @@ onBeforeUnmount(() => {
       '--icon-rotation': `${item.rotation}deg`,
       '--icon-float-distance': `${settings.floatDistance}px`,
     }">
-      <TechnologyIcon :name="item.name" :icon="item.icon" :size="item.size" />
+      <TechnologyIcon :name="item.name" :icon="item.icon" :size="item.size" eager />
     </span>
   </div>
 </template>
