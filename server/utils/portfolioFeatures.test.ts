@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { filterAiTools, parseAiUseCasesInput } from '../../composables/aiFilters';
+import { parseProjectMetricsJson, parseSkillImportJson } from '../../composables/adminJsonImports';
 import { filterProjects } from '../../composables/projectFilters';
 import type { Technology } from '../../composables/usePortfolioData';
 import { contactInputSchema } from './contactValidation';
@@ -63,6 +64,40 @@ describe('public AI filters', () => {
     assert.deepEqual(filterAiTools(tools, { type: 'model' }).map((item) => item.name), ['GPT Model']);
     assert.deepEqual(filterAiTools(tools, { query: 'CODE' }).map((item) => item.name), ['GPT Model']);
     assert.deepEqual(filterAiTools(tools, { query: 'open', type: 'provider' }).map((item) => item.name), ['OpenAI']);
+  });
+
+  describe('admin JSON imports', () => {
+    it('accepts project metrics with optional evidence fields', () => {
+      const result = parseProjectMetricsJson(JSON.stringify([
+        { label: 'Pages réalisées', value: '8' },
+        { label: 'Score Lighthouse', value: '96', unit: '/100', evidenceUrl: 'https://example.com/report' },
+      ]));
+      assert.equal(result.error, undefined);
+      assert.equal(result.data?.length, 2);
+      assert.equal(result.data?.[1].evidenceUrl, 'https://example.com/report');
+    });
+
+    it('rejects invalid project metric JSON without returning partial data', () => {
+      const result = parseProjectMetricsJson('[{"label":"Score","value":"90","extra":true}]');
+      assert.equal(result.data, undefined);
+      assert.match(result.error || '', /inconnu/);
+      const tooManyMetrics = Array.from({ length: 13 }, () => ({ label: 'Test', value: '1' }));
+      assert.match(parseProjectMetricsJson(JSON.stringify(tooManyMetrics)).error || '', /12 métriques/);
+    });
+
+    it('validates skill imports, supplies defaults, and identifies duplicates', () => {
+      const result = parseSkillImportJson(JSON.stringify([
+        { name: 'Vue.js' },
+        { name: 'TypeScript', category: 'Langages', level: 85, icon: 'logos:typescript-icon' },
+        { name: 'Vue.js', category: 'Frontend', level: 90 },
+        { name: 'Bad level', level: 101 },
+      ]), ['Existing']);
+      assert.equal(result.error, undefined);
+      assert.equal(result.rows?.[0].category, 'Full Stack');
+      assert.equal(result.rows?.[0].level, 75);
+      assert.equal(result.rows?.[2].duplicate, true);
+      assert.match(result.rows?.[3].error || '', /Niveau attendu/);
+    });
   });
 
   it('parses unique verified use cases from comma, semicolon or line-separated input', () => {
