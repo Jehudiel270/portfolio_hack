@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { Check, Clock3, LoaderCircle, Sparkles, Undo2 } from 'lucide-vue-next';
-import { AI_DRAFT_FIELDS, type AiDraftResource } from '~/shared/adminAi';
+import { AI_DRAFT_FIELDS, type AiDraftResource, type AiProvider } from '~/shared/adminAi';
 
 const props = defineProps<{
   resource: AiDraftResource;
@@ -17,6 +17,9 @@ const busy = ref(false);
 const error = ref('');
 const draft = ref<Record<string, unknown> | null>(null);
 const modelUsed = ref('');
+const providers = ref<Array<{ id: AiProvider; label: string; configured: boolean; model: string }>>([]);
+const selectedProvider = ref<Exclude<AiProvider, 'github'>>('gemini');
+const selectedProviderConfigured = computed(() => providers.value.some(provider => provider.id === selectedProvider.value && provider.configured));
 const selectedHistoryId = ref('');
 const draftHistory = ref<Array<{
   id: number;
@@ -32,6 +35,9 @@ const fieldLabels: Record<string, string> = {
   slug: 'Identifiant URL',
   description: 'Description',
   tags: 'Technologies',
+  demoUrl: 'Lien de démonstration',
+  repoUrl: 'Dépôt GitHub',
+  year: 'Année',
   projectType: 'Type de projet',
   caseRole: 'Rôle',
   caseContext: 'Contexte',
@@ -58,13 +64,30 @@ const fieldLabels: Record<string, string> = {
   aiAccessMode: 'Mode d’accès',
   aiUseCases: 'Usages',
   aiVerifiedAt: 'Date de vérification',
+  author: 'Auteur',
+  quote: 'Citation',
+  bio: 'Présentation',
+  education: 'Formation',
+  metrics: 'Métriques',
+  officialUrl: 'Lien officiel',
 };
+
+onMounted(async () => {
+  try {
+    const result = await $fetch<{ providers: typeof providers.value }>('/api/admin/ai/providers');
+    providers.value = result.providers.filter((provider) => provider.id !== 'github');
+    const configured = providers.value.find((provider) => provider.configured);
+    if (configured) selectedProvider.value = configured.id as Exclude<AiProvider, 'github'>;
+  } catch {
+    error.value = 'Impossible de charger la liste des fournisseurs IA.';
+  }
+});
 
 async function generateDraft() {
   error.value = '';
   draft.value = null;
   if (!consent.value) {
-    error.value = 'Confirme l’envoi des champs sélectionnés à Google avant de continuer.';
+    error.value = 'Confirme l’envoi des champs sélectionnés au fournisseur choisi avant de continuer.';
     return;
   }
   if (instructions.value.trim().length < 4) {
@@ -78,13 +101,13 @@ async function generateDraft() {
     const current = Object.fromEntries(Object.entries(props.current).filter(([, value]) =>
       value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0),
     ));
-    const response = await $fetch<{ draft: Record<string, unknown>; model: string }>('/api/admin/ai/draft', {
+    const response = await $fetch<{ draft: Record<string, unknown>; model: string; provider: string }>('/api/admin/ai/draft', {
       method: 'POST',
-      body: { resource: props.resource, instructions: instructions.value.trim(), current },
+      body: { resource: props.resource, provider: selectedProvider.value, instructions: instructions.value.trim(), current },
       headers: { 'x-admin-csrf': csrf },
     });
     draft.value = response.draft;
-    modelUsed.value = response.model;
+    modelUsed.value = `${providers.value.find((provider) => provider.id === response.provider)?.label || response.provider} · ${response.model}`;
     const historyId = nextHistoryId++;
     selectedHistoryId.value = String(historyId);
     draftHistory.value.unshift({
@@ -99,9 +122,9 @@ async function generateDraft() {
     if (cause && typeof cause === 'object') {
       const request = cause as { data?: { statusMessage?: unknown }; statusMessage?: unknown };
       const message = request.data?.statusMessage || request.statusMessage;
-      error.value = typeof message === 'string' ? message : 'Gemini n’a pas pu préparer le brouillon.';
+      error.value = typeof message === 'string' ? message : 'Le fournisseur IA n’a pas pu préparer le brouillon.';
     } else {
-      error.value = 'Gemini n’a pas pu préparer le brouillon.';
+      error.value = 'Le fournisseur IA n’a pas pu préparer le brouillon.';
     }
   } finally {
     busy.value = false;
@@ -109,7 +132,8 @@ async function generateDraft() {
 }
 
 function displayValue(value: unknown) {
-  return Array.isArray(value) ? value.join(', ') : String(value ?? '');
+  if (Array.isArray(value)) return value.map(item => typeof item === 'object' && item !== null ? JSON.stringify(item) : String(item)).join(', ');
+  return value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value ?? '');
 }
 
 function selectHistory(entry: (typeof draftHistory.value)[number]) {
@@ -148,17 +172,22 @@ const allowedFields = AI_DRAFT_FIELDS[props.resource] as readonly string[];
 <template>
   <section class="admin-gemini-assistant">
     <div class="admin-gemini-heading">
-      <div><h3><Sparkles :size="16" /> Assistant Gemini</h3><p>Prépare un brouillon pour cette fiche. Tu le relis et l’enregistres toi-même.</p></div>
-      <span class="admin-gemini-model">{{ modelUsed || 'Gemini' }}</span>
+      <div><h3><Sparkles :size="16" /> Assistant IA</h3><p>Prépare un brouillon sur cette fiche. Tu le relis et l’enregistres toi-même.</p></div>
+      <span class="admin-gemini-model">{{ modelUsed || 'Fournisseur au choix' }}</span>
     </div>
+    <label class="admin-gemini-provider">Fournisseur de rédaction
+      <select v-model="selectedProvider">
+        <option v-for="provider in providers" :key="provider.id" :value="provider.id" :disabled="!provider.configured">{{ provider.label }} · {{ provider.configured ? provider.model : 'clé non configurée' }}</option>
+      </select>
+    </label>
     <label class="admin-gemini-prompt">Que veux-tu améliorer ou compléter ?
       <textarea v-model="instructions" rows="3" maxlength="1000" placeholder="Ex. Reformule la description pour mettre l’accent sur les objectifs et le travail réellement réalisé."></textarea>
     </label>
-    <label class="admin-gemini-consent"><input v-model="consent" type="checkbox"><span>J’accepte d’envoyer ma demande et les champs de cette fiche à Google Gemini pour générer un brouillon.</span></label>
-    <p class="admin-gemini-privacy">Gemini remplit les champs du formulaire après ton accord. Tu peux relire, annuler ou modifier le résultat avant d’enregistrer. L’historique est conservé pendant l’édition de cette fiche; rien n’est sauvegardé automatiquement.</p>
+    <label class="admin-gemini-consent"><input v-model="consent" type="checkbox"><span>J’accepte d’envoyer ma demande et les champs affichés au fournisseur choisi. Le README GitHub du projet sera lu et transmis au modèle. Seul Gemini peut aussi consulter l’URL de démo fournie.</span></label>
+    <p class="admin-gemini-privacy">Le modèle ne peut modifier que les champs listés pour cette fiche. Tu peux relire, annuler ou modifier le résultat avant d’enregistrer. L’historique reste dans cette édition; aucun brouillon n’est sauvegardé automatiquement.</p>
     <p v-if="error" class="admin-alert error" role="alert">{{ error }}</p>
-    <button class="button secondary" type="button" :disabled="busy||!consent||instructions.trim().length<4" @click="generateDraft">
-      <LoaderCircle v-if="busy" :size="15" class="admin-spinner" /><Sparkles v-else :size="15" />{{ busy?'Gemini prépare le brouillon…':'Générer un brouillon' }}
+    <button class="button secondary" type="button" :disabled="busy||!consent||!selectedProviderConfigured||instructions.trim().length<4" @click="generateDraft">
+      <LoaderCircle v-if="busy" :size="15" class="admin-spinner" /><Sparkles v-else :size="15" />{{ busy?'Préparation du brouillon…':'Générer un brouillon' }}
     </button>
     <div v-if="draft" class="admin-gemini-draft" aria-live="polite">
       <strong>Brouillon à relire</strong>

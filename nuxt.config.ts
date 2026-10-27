@@ -40,7 +40,7 @@ export default defineNuxtConfig({
     smtpFrom: process.env.SMTP_FROM || "",
     contactFallbackTo: process.env.CONTACT_FALLBACK_TO || "",
     geminiApiKey: process.env.GEMINI_API_KEY || "",
-    geminiModel: process.env.GEMINI_MODEL || "gemini-3.6-flash",
+    geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || "",
     },

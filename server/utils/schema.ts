@@ -152,4 +152,25 @@ export const pageViews = pgTable('portfolio_page_views', {
   path: varchar('path', { length: 120 }).notNull(),
   views: integer('views').notNull().default(0),
 }, (table) => ({ dailyPath: uniqueIndex('portfolio_page_views_day_path_unique').on(table.day, table.path) }));
-export const portfolioSchema = { admins, profiles, projects, journey, educations, certifications, achievements, testimonials, skills, technologies, contactMessages, siteSettings, activityLog, pageViews };
+export const analyticsEvents = pgTable('portfolio_analytics_events', {
+  day: varchar('day', { length: 10 }).notNull(),
+  path: varchar('path', { length: 120 }).notNull(),
+  event: varchar('event', { length: 40 }).notNull(),
+  source: varchar('source', { length: 40 }).notNull().default('direct'),
+  device: varchar('device', { length: 16 }).notNull().default('unknown'),
+  count: integer('count').notNull().default(0),
+}, (table) => ({ dailyEvent: uniqueIndex('portfolio_analytics_events_daily_unique').on(table.day, table.path, table.event, table.source, table.device) }));
+export const aiProviderCredentials = pgTable('portfolio_ai_provider_credentials', {
+  provider: varchar('provider', { length: 24 }).primaryKey(),
+  encryptedKey: text('encrypted_key').notNull(),
+  model: varchar('model', { length: 120 }).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+export const aiProviderUsage = pgTable('portfolio_ai_provider_usage', {
+  day: varchar('day', { length: 10 }).notNull(),
+  provider: varchar('provider', { length: 24 }).notNull(),
+  requests: integer('requests').notNull().default(0),
+  inputTokens: integer('input_tokens').notNull().default(0),
+  outputTokens: integer('output_tokens').notNull().default(0),
+}, (table) => ({ dailyProvider: uniqueIndex('portfolio_ai_provider_usage_daily_unique').on(table.day, table.provider) }));
+export const portfolioSchema = { admins, profiles, projects, journey, educations, certifications, achievements, testimonials, skills, technologies, contactMessages, siteSettings, activityLog, pageViews, analyticsEvents, aiProviderCredentials, aiProviderUsage };

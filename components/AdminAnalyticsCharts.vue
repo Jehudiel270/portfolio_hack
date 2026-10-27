@@ -2,7 +2,8 @@
 import { computed } from 'vue';
 
 interface PageViewRow { day: string; path: string; views: number; }
-const props = defineProps<{ rows: PageViewRow[] }>();
+interface AnalyticsEventRow { day: string; path: string; event: string; source: string; device: string; count: number; }
+const props = defineProps<{ rows: PageViewRow[]; events: AnalyticsEventRow[] }>();
 
 const dailyTotals = computed(() => {
   const counts = new Map<string, number>();
@@ -30,6 +31,23 @@ const pathTotals = computed(() => {
 });
 const maximumPathViews = computed(() => Math.max(1, ...pathTotals.value.map((entry) => entry.views)));
 const totalViews = computed(() => props.rows.reduce((sum, row) => sum + row.views, 0));
+const eventTotals = computed(() => {
+  const counts = new Map<string, number>();
+  for (const row of props.events) counts.set(row.event, (counts.get(row.event) || 0) + row.count);
+  return [...counts.entries()].map(([event, count]) => ({ event, count })).sort((a, b) => b.count - a.count);
+});
+const sourceTotals = computed(() => {
+  const counts = new Map<string, number>();
+  for (const row of props.events) counts.set(row.source, (counts.get(row.source) || 0) + row.count);
+  return [...counts.entries()].map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count);
+});
+const deviceTotals = computed(() => {
+  const counts = new Map<string, number>();
+  for (const row of props.events) counts.set(row.device, (counts.get(row.device) || 0) + row.count);
+  return [...counts.entries()].map(([device, count]) => ({ device, count })).sort((a, b) => b.count - a.count);
+});
+const maxEventCount = computed(() => Math.max(1, ...eventTotals.value.map(entry => entry.count)));
+const eventLabel: Record<string, string> = { page_view: 'Pages vues', outbound_click: 'Clics sortants', contact_start: 'Formulaires commencés', form_submit: 'Messages acceptés' };
 </script>
 
 <template>
@@ -55,11 +73,26 @@ const totalViews = computed(() => props.rows.reduce((sum, row) => sum + row.view
       </div>
       <p v-else class="muted">Aucune page mesurée pour le moment.</p>
     </article>
+    <article class="window admin-analytics-card admin-analytics-events">
+      <div class="admin-analytics-heading"><div><h2>Parcours agrégé</h2><p class="muted">Événements, sources et appareils · 30 jours</p></div></div>
+      <div v-if="eventTotals.length" class="admin-analytics-bars">
+        <div v-for="entry in eventTotals" :key="entry.event" class="admin-analytics-bar">
+          <div><span>{{ eventLabel[entry.event] || entry.event }}</span><strong>{{ entry.count.toLocaleString('fr-FR') }}</strong></div>
+          <span class="admin-analytics-bar-track"><i :style="{ width: `${entry.count / maxEventCount * 100}%` }"></i></span>
+        </div>
+      </div>
+      <p v-else class="muted">Aucun événement mesuré pour le moment.</p>
+      <div v-if="sourceTotals.length || deviceTotals.length" class="admin-analytics-breakdowns">
+        <div><strong>Sources</strong><span v-for="entry in sourceTotals" :key="entry.source">{{ entry.source }} · {{ entry.count }}</span></div>
+        <div><strong>Appareils</strong><span v-for="entry in deviceTotals" :key="entry.device">{{ entry.device }} · {{ entry.count }}</span></div>
+      </div>
+    </article>
   </section>
 </template>
 
 <style scoped>
 .admin-analytics-charts { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(240px, 1fr); gap: 14px; margin: 16px 0; }
+.admin-analytics-events { grid-column: 1 / -1; }
 .admin-analytics-card { min-width: 0; padding: 15px; }
 .admin-analytics-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .admin-analytics-heading h2 { margin: 0; font-size: 14px; }
@@ -77,5 +110,10 @@ const totalViews = computed(() => props.rows.reduce((sum, row) => sum + row.view
 .admin-analytics-bar > div strong { color: var(--cyan); }
 .admin-analytics-bar-track { display: block; height: 6px; overflow: hidden; border-radius: 99px; background: rgba(85, 128, 170, .2); }
 .admin-analytics-bar-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--cyan), var(--violet)); }
+.admin-analytics-breakdowns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.admin-analytics-breakdowns > div { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+.admin-analytics-breakdowns strong { flex-basis: 100%; font-size: 11px; }
+.admin-analytics-breakdowns span { padding: 3px 7px; border: 1px solid var(--line); border-radius: 99px; color: var(--muted); font-size: 10px; }
 @media (max-width: 760px) { .admin-analytics-charts { grid-template-columns: 1fr; } }
+@media (max-width: 500px) { .admin-analytics-breakdowns { grid-template-columns: 1fr; } }
 </style>

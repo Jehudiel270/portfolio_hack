@@ -44,7 +44,7 @@ export const ADMIN_PERMISSION_GROUPS: { id: string; label: string; actions: { ke
       { key: `${id}.delete` as AdminPermission, label: 'Supprimer' },
       { key: `${id}.reorder` as AdminPermission, label: 'Réordonner' },
       ...(id === 'projects' ? [{ key: 'projects.preview' as AdminPermission, label: 'Prévisualiser' }] : []),
-      ...(id === 'technologies' ? [{ key: 'ai.generate' as AdminPermission, label: 'Générer un brouillon avec Gemini' }] : []),
+      ...(id === 'technologies' ? [{ key: 'ai.generate' as AdminPermission, label: 'Générer un brouillon avec un fournisseur IA' }] : []),
     ],
   })),
   { id: 'profile', label: 'Profil & image', actions: [{ key: 'profile.view', label: 'Consulter' }, { key: 'profile.update', label: 'Modifier' }] },
@@ -64,6 +64,8 @@ export function normalizeAdminPermissions(value: unknown): AdminPermissions {
 
 export function resolveAdminPermission(path: string, method: string): AdminPermission | null {
   if (path === '/api/admin/ai/draft') return method === 'POST' ? 'ai.generate' : null;
+  if (path === '/api/admin/ai/image') return method === 'POST' ? 'ai.generate' : null;
+  if (path === '/api/admin/ai/providers' || path === '/api/admin/ai/usage') return method === 'GET' ? 'ai.generate' : null;
   const contentMatch = path.match(/^\/api\/admin\/content\/(projects|journey|educations|certifications|achievements|testimonials|skills|technologies)(?:\/([^/]+))?(?:\/([^/]+))?$/);
   if (contentMatch) {
     const [, resource, segment, trailing] = contentMatch;

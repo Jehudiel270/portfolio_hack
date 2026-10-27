@@ -19,6 +19,7 @@ async function sendMessage() {
       body: { ...contact.value, website: website.value },
     });
     formStatus.value = result.message;
+    if (import.meta.client) window.dispatchEvent(new CustomEvent('portfolio-contact', { detail: 'success' }));
     contact.value = { name: '', email: '', subject: '', message: '' };
   } catch (error: unknown) {
     formError.value = true;

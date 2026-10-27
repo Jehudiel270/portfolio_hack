@@ -160,20 +160,45 @@ onMounted(() => {
   document.addEventListener('pointermove', updateCardSpotlight, { passive: true });
 });
 
-async function trackPageView() {
+type AnalyticsEvent = 'page_view' | 'outbound_click' | 'contact_start' | 'form_submit';
+
+async function trackAnalyticsEvent(eventName: AnalyticsEvent, path = route.path) {
   if (route.path.startsWith('/admin')) return;
   try {
-    await $fetch('/api/metrics/page', { method: 'POST', body: { path: route.path } });
+    await $fetch('/api/metrics/page', { method: 'POST', body: { path, event: eventName } });
   } catch (error) {
-    console.warn('[Analytics] Could not record anonymous page view.', error);
+    console.warn('[Analytics] Could not record privacy-preserving event.', error);
   }
 }
 
-onMounted(() => { void trackPageView(); });
+const startedContactForms = new WeakSet<HTMLFormElement>();
+function observeContactStart(event: FocusEvent) {
+  if (!(event.target instanceof Element)) return;
+  const form = event.target.closest<HTMLFormElement>('.contact-form');
+  if (!form || startedContactForms.has(form)) return;
+  startedContactForms.add(form);
+  void trackAnalyticsEvent('contact_start');
+}
+function observeOutboundClick(event: MouseEvent) {
+  if (!(event.target instanceof Element)) return;
+  const link = event.target.closest<HTMLAnchorElement>('a[href]');
+  if (!link || link.target !== '_blank' || !/^https?:/i.test(link.href)) return;
+  void trackAnalyticsEvent('outbound_click');
+}
+function observeSuccessfulContact(event: Event) {
+  if (event instanceof CustomEvent && event.detail === 'success') void trackAnalyticsEvent('form_submit');
+}
+
+onMounted(() => {
+  void trackAnalyticsEvent('page_view');
+  document.addEventListener('focusin', observeContactStart);
+  document.addEventListener('click', observeOutboundClick);
+  window.addEventListener('portfolio-contact', observeSuccessfulContact);
+});
 
 watch(() => route.path, () => {
   void observePageContent();
-  void trackPageView();
+  void trackAnalyticsEvent('page_view');
   updateScrollProgress();
 });
 
@@ -182,6 +207,9 @@ onBeforeUnmount(() => {
   window.removeEventListener('scroll', updateScrollProgress);
   window.removeEventListener('resize', updateScrollProgress);
   document.removeEventListener('pointermove', updateCardSpotlight);
+  document.removeEventListener('focusin', observeContactStart);
+  document.removeEventListener('click', observeOutboundClick);
+  window.removeEventListener('portfolio-contact', observeSuccessfulContact);
   if (progressFrame) window.cancelAnimationFrame(progressFrame);
   if (pointerFrame) window.cancelAnimationFrame(pointerFrame);
 });
