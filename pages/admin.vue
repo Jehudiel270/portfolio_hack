@@ -20,6 +20,7 @@ import { parseAiUseCasesInput } from '~/composables/aiFilters';
 import { parseSkillImportJson, skillJsonExample, type SkillImportRow } from '~/composables/adminJsonImports';
 import type { AdminPermissions } from '~/shared/adminPermissions';
 import { AI_DRAFT_FIELDS, type AiDraftResource } from '~/shared/adminAi';
+import { PROJECT_CATEGORIES } from '~/shared/projectCategories';
 useSeoMeta({ title: 'Administration — Carrel DOSSOU', robots: 'noindex, nofollow' });
 type Resource = 'projects'|'journey'|'educations'|'certifications'|'achievements'|'testimonials'|'skills'|'technologies';
 const tabs: {id:string,label:string,icon:any,permission?:string}[]=[{id:'overview',label:'Vue d’ensemble',icon:LayoutDashboard,permission:'overview.view'},{id:'projects',label:'Projets',icon:Code2,permission:'projects.view'},{id:'journey',label:'Expériences & parcours',icon:Activity,permission:'journey.view'},{id:'educations',label:'Formations & diplômes',icon:GraduationCap,permission:'educations.view'},{id:'certifications',label:'Certifications',icon:ShieldCheck,permission:'certifications.view'},{id:'achievements',label:'Réalisations',icon:Activity,permission:'achievements.view'},{id:'testimonials',label:'Témoignages',icon:MessageSquareText,permission:'testimonials.view'},{id:'skills',label:'Compétences',icon:ShieldCheck,permission:'skills.view'},{id:'technologies',label:'Technologies',icon:Settings2,permission:'technologies.view'},{id:'ai',label:'IA & modèles',icon:Sparkles,permission:'technologies.view'},{id:'integrations',label:'API & fournisseurs',icon:Settings2},{id:'cv',label:'Importer un CV',icon:FileText,permission:'cv.preview'},{id:'profile',label:'Profil & image',icon:ImagePlus,permission:'profile.view'},{id:'messages',label:'Messages',icon:MessageSquareText,permission:'messages.view'},{id:'settings',label:'Réglages du site',icon:Settings2,permission:'settings.view'},{id:'analytics',label:'Statistiques',icon:Activity,permission:'analytics.view'},{id:'activity',label:'Journal admin',icon:FileText,permission:'activity.view'},{id:'accounts',label:'Comptes & permissions',icon:ShieldCheck}];
@@ -177,7 +178,9 @@ function applyTechnologySlot(slot:{name:string;technologies:string[]}){editor.ta
 function addCustomFloatingIcon(){const name=customFloatingIconName.value.trim();const icon=customFloatingIconValue.value.trim();if(!name||!(/^(?:text:.{1,12}|(?:logos|devicon|simple-icons):[a-z0-9-]+)$/i.test(icon))||siteSettings.floatingIcons.icons.length>=30)return;if(!isFloatingIconSelected(icon))siteSettings.floatingIcons.icons.push({name,icon});customFloatingIconName.value='';customFloatingIconValue.value=''}
 function projectTechnologySelected(name:string){return Array.isArray(editor.tags)&&editor.tags.some((tag:string)=>tag.toLocaleLowerCase('fr')===name.toLocaleLowerCase('fr'))}
 function toggleProjectTechnology(name:string){const tags=Array.isArray(editor.tags)?editor.tags as string[]:[];editor.tags=projectTechnologySelected(name)?tags.filter(tag=>tag.toLocaleLowerCase('fr')!==name.toLocaleLowerCase('fr')):[...tags,name]}
-const projectCategoryOptions=['Front-end','Back-end','Base de données','API','E-commerce','Mobile','IA','Sécurité','DevOps','Web','Desktop','Temps réel','Open Source'];
+const projectCategoryOptions=PROJECT_CATEGORIES;
+const projectCategorySearch=ref('');
+const filteredProjectCategoryOptions=computed(()=>projectCategoryOptions.filter((category)=>category.toLocaleLowerCase('fr').includes(projectCategorySearch.value.trim().toLocaleLowerCase('fr'))));
 const customProjectCategory=ref('');
 function projectCategorySelected(category:string){return Array.isArray(editor.categories)&&editor.categories.some((item:string)=>item.toLocaleLowerCase('fr')===category.toLocaleLowerCase('fr'))}
 function toggleProjectCategory(category:string){const categories=Array.isArray(editor.categories)?editor.categories as string[]:[];editor.categories=projectCategorySelected(category)?categories.filter(item=>item.toLocaleLowerCase('fr')!==category.toLocaleLowerCase('fr')):[...categories,category].slice(0,12)}
@@ -658,12 +661,14 @@ onBeforeUnmount(()=>{if(messagePollTimer)clearInterval(messagePollTimer);if(type
             <div v-else-if="key==='categories'&&resourceForTab()==='projects'" class="field full project-category-picker">
               <label>Catégories du projet</label>
               <p class="muted">Choisis les rôles et domaines fonctionnels du projet, indépendamment de ses technologies. Jusqu’à 12 catégories ; les trois premières apparaissent sur la carte publique.</p>
+              <input v-model="projectCategorySearch" type="search" aria-label="Rechercher une catégorie de projet" placeholder="Rechercher parmi les catégories…">
               <div class="page-visibility-options project-category-options">
-                <label v-for="category in projectCategoryOptions" :key="category">
+                <label v-for="category in filteredProjectCategoryOptions" :key="category">
                   <input type="checkbox" :checked="projectCategorySelected(category)" :disabled="!projectCategorySelected(category)&&editor.categories.length>=12" @change="toggleProjectCategory(category)">
                   {{ category }}
                 </label>
               </div>
+              <p v-if="!filteredProjectCategoryOptions.length" class="muted">Aucune catégorie trouvée.</p>
               <div class="project-category-custom">
                 <input v-model="customProjectCategory" maxlength="40" type="text" aria-label="Catégorie personnalisée" placeholder="Autre catégorie…">
                 <button class="button secondary" type="button" :disabled="!customProjectCategory.trim()||editor.categories.length>=12" @click="addCustomProjectCategory">Ajouter</button>
