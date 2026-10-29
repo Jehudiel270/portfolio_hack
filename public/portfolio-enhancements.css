@@ -2487,7 +2487,7 @@ html[data-theme='light'][data-public-site='true'] .public-light-veil {
 .admin-gemini-prompt textarea { width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: rgba(3, 9, 21, .78); color: var(--text); resize: vertical; }
 .admin-gemini-provider { display: grid; min-width: 0; gap: 6px; color: var(--muted); font-size: 12px; }
 .admin-gemini-provider select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; background: rgba(3, 9, 21, .78); color: var(--text); }
-.admin-gemini-consent { display: flex; min-width: 0; align-items: flex-start; gap: 8px; color: var(--text); font-size: 11px; }
+.admin-gemini-consent { display: flex; width: 100%; max-width: 100%; min-width: 0; align-items: flex-start; gap: 8px; box-sizing: border-box; color: var(--text); font-size: 11px; overflow-wrap: anywhere; }
 .admin-gemini-consent input { flex: 0 0 auto; margin-top: 3px; accent-color: #9c7aff; } .admin-gemini-consent > span { min-width: 0; overflow-wrap: anywhere; }
 .admin-gemini-assistant > .admin-alert { margin: 0; overflow-wrap: anywhere; }
 .admin-gemini-draft { display: grid; min-width: 0; gap: 8px; padding: 12px; border: 1px solid rgba(57, 242, 163, .25); border-radius: 7px; background: rgba(8, 94, 55, .08); }
@@ -2538,7 +2538,7 @@ html[data-theme='light'][data-public-site='true'] .public-light-veil {
 .admin-ai-site-capture h3 { display: flex; align-items: center; gap: 7px; margin: 0 0 3px; font-size: 12px; }
 .admin-ai-site-capture p { margin: 0; color: var(--muted); font-size: 11px; }
 .admin-ai-site-capture > .admin-gemini-consent { width: 100%; max-width: 100%; grid-column: 1 / -1; box-sizing: border-box; } .admin-ai-site-capture-controls { display: flex; width: 100%; max-width: 100%; flex-wrap: wrap; align-items: end; gap: 9px; }
-.admin-ai-site-capture-controls label { display: grid; min-width: min(100%, 220px); gap: 4px; color: var(--muted); font-size: 11px; }
+.admin-ai-site-capture-controls label { display: grid; width: 100%; max-width: 100%; min-width: 0; gap: 4px; color: var(--muted); font-size: 11px; }
 .admin-ai-site-capture-controls select { min-height: 36px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 5px; background: rgba(3, 9, 21, .78); color: var(--text); }
 .admin-ai-site-capture-preview { display: grid; justify-items: start; gap: 8px; }
 .admin-ai-site-capture-preview img { width: min(100%, 720px); max-height: 70vh; object-fit: contain; border: 1px solid var(--line); border-radius: 6px; background: rgba(2, 8, 18, .72); }
@@ -2577,6 +2577,8 @@ html[data-theme='light'] .admin-github-account { background: rgba(255, 255, 255,
 
 @media (max-width: 560px) {
   .admin-gemini-assistant { padding: 11px; }
+  .admin-gemini-consent { width: 100%; max-width: 100%; grid-column: 1 / -1; }
+  .admin-gemini-consent > span { flex: 1 1 0; min-width: 0; }
   .admin-ai-provider-panel { padding: 11px; }
   .admin-ai-provider-panel > header { display: grid; }
   .admin-ai-provider-grid { grid-template-columns: minmax(0, 1fr); }

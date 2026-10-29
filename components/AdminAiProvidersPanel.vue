@@ -50,17 +50,25 @@ function getError(cause: unknown) {
 
 async function load() {
   error.value = '';
-  const [providerResponse, usageResponse, githubAccountResponse, geminiAccountResponse] = await Promise.all([
+  const [providerResult, usageResult, githubResult, geminiResult] = await Promise.allSettled([
     $fetch<{ providers: ProviderRow[] }>('/api/admin/ai/providers'),
     $fetch<UsageRow[]>('/api/admin/ai/usage'),
     $fetch<GithubAccountRow[]>('/api/admin/ai/github-accounts'),
     $fetch<GithubAccountRow[]>('/api/admin/ai/gemini-accounts'),
   ]);
-  providers.value = providerResponse.providers;
-  usage.value = usageResponse;
-  githubAccounts.value = githubAccountResponse;
-  geminiAccounts.value = geminiAccountResponse;
-  for (const provider of providers.value) models[provider.id] = provider.model || provider.defaultModel;
+  if (providerResult.status === 'fulfilled') {
+    providers.value = providerResult.value.providers;
+    for (const provider of providers.value) models[provider.id] = provider.model || provider.defaultModel;
+  } else {
+    providers.value = [];
+    error.value = 'Impossible de charger les fournisseurs. Vérifie ta session administrateur et la connexion à la base.';
+  }
+  if (usageResult.status === 'fulfilled') usage.value = usageResult.value;
+  if (githubResult.status === 'fulfilled') githubAccounts.value = githubResult.value;
+  if (geminiResult.status === 'fulfilled') geminiAccounts.value = geminiResult.value;
+  if ([usageResult, githubResult, geminiResult].some(result => result.status === 'rejected')) {
+    notice.value = '';
+  }
 }
 
 async function addGithubAccount() {

@@ -428,37 +428,54 @@ export async function generateOpenAiImage(apiKey: string, prompt: string) {
 
 export async function searchGithubRepositoryContext(query: string, apiKeys: string[] = []) {
   const credentials = [...new Set(apiKeys.filter(Boolean))];
-  if (!credentials.length || !query.trim()) return '';
+  if (!credentials.length) return '';
   const seen = new Set<string>();
   const repositories: Array<{ fullName: string; description: string; url: string }> = [];
+  const normalizedQuery = query.toLocaleLowerCase('fr');
+  const terms = [...new Set(normalizedQuery.split(/[^a-z0-9à-ÿ.+_-]+/u).filter(term => term.length >= 3))].slice(0, 12);
+
   for (const apiKey of credentials) {
     const headers: Record<string, string> = { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', authorization: `Bearer ${apiKey}` };
-    const searchUrl = `${apiBase('github')}/search/repositories?q=${encodeURIComponent(`${query.trim()} in:name,description,readme`)}&per_page=5`;
-    try {
-      const response = await providerFetch(searchUrl, { headers }, 12_000, 'GitHub');
-      if (!response.ok) continue;
-      const payload = await providerJson<{ items?: Array<{ full_name?: unknown; description?: unknown; html_url?: unknown }> }>(response, 'GitHub');
-      for (const item of payload.items || []) {
-        if (typeof item.full_name !== 'string' || seen.has(item.full_name)) continue;
-        seen.add(item.full_name);
-        repositories.push({ fullName: item.full_name, description: typeof item.description === 'string' ? item.description : '', url: typeof item.html_url === 'string' ? item.html_url : '' });
+    const sources = [
+      `${apiBase('github')}/user/repos?affiliation=owner,collaborator,organization_member&sort=updated&per_page=100`,
+      `${apiBase('github')}/search/repositories?q=${encodeURIComponent(`${terms.slice(0, 5).join(' ')} in:name,description,readme`)}&per_page=20`,
+    ];
+    for (const source of sources) {
+      try {
+        const response = await providerFetch(source, { headers }, 12_000, 'GitHub');
+        if (!response.ok) continue;
+        const payload = await providerJson<{ items?: unknown; } | Array<{ full_name?: unknown; description?: unknown; html_url?: unknown }> >(response, 'GitHub');
+        const items = Array.isArray(payload)
+          ? payload
+          : (Array.isArray((payload as { items?: unknown }).items) ? (payload as { items: Array<{ full_name?: unknown; description?: unknown; html_url?: unknown }> }).items : []);
+        for (const item of items) {
+          if (!item || typeof item !== 'object') continue;
+          const repo = item as { full_name?: unknown; description?: unknown; html_url?: unknown };
+          if (typeof repo.full_name !== 'string' || seen.has(repo.full_name)) continue;
+          const searchable = `${repo.full_name} ${typeof repo.description === 'string' ? repo.description : ''}`.toLocaleLowerCase('fr');
+          if (!terms.length || terms.some(term => searchable.includes(term))) {
+            seen.add(repo.full_name);
+            repositories.push({ fullName: repo.full_name, description: typeof repo.description === 'string' ? repo.description : '', url: typeof repo.html_url === 'string' ? repo.html_url : '' });
+          }
+        }
+      } catch {
+        continue;
       }
-    } catch {
-      continue;
+      if (repositories.length >= 12) break;
     }
-    if (repositories.length >= 8) break;
+    if (repositories.length >= 12) break;
   }
+
   const parts: string[] = [];
-  for (const repository of repositories.slice(0, 8)) {
+  for (const repository of repositories.slice(0, 12)) {
     try {
       const readme = await readGithubReadme(repository.url, credentials);
       parts.push(`Dépôt: ${repository.fullName}\nDescription GitHub: ${repository.description}\nURL: ${repository.url}\nREADME:\n${readme}`);
-      await new Promise(resolve => setTimeout(resolve, 50));
     } catch {
       parts.push(`Dépôt: ${repository.fullName}\nDescription GitHub: ${repository.description}\nURL: ${repository.url}`);
     }
   }
-  return parts.join('\n\n---\n\n').slice(0, 30_000);
+  return parts.join('\n\n---\n\n').slice(0, 40_000);
 }
 
 export async function readGithubReadme(repoUrl: string, apiKeys: string[] = []) {
