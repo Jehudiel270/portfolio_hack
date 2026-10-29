@@ -201,12 +201,13 @@ function apiBase(provider: AiProvider) {
   }
 }
 
-async function providerFetch(url: string, init?: RequestInit, timeoutMs = 12_000, providerName = 'fournisseur IA') {
+async function providerFetch(url: string, init?: RequestInit, timeoutMs = 30_000, providerName = 'fournisseur IA') {
   try {
     return await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs), redirect: 'error' });
   } catch (error) {
-    const timedOut = error instanceof Error && error.name === 'TimeoutError';
-    throw createError({ statusCode: 502, statusMessage: timedOut ? `${providerName} ne répond pas à temps.` : `Connexion à ${providerName} impossible.` });
+    const errorName = error instanceof Error ? error.name : '';
+    const timedOut = errorName === 'TimeoutError' || errorName === 'AbortError';
+    throw createError({ statusCode: 504, statusMessage: timedOut ? `${providerName} ne répond pas à temps après ${Math.ceil(timeoutMs / 1000)} s. Réessaie ou change de modèle.` : `Connexion à ${providerName} impossible.` });
   }
 }
 
@@ -237,7 +238,7 @@ export async function checkProviderCredential(provider: AiProvider, apiKey: stri
     url = `${apiBase(provider)}/models`;
     headers = { authorization: `Bearer ${apiKey}` };
   }
-  const response = await providerFetch(url, { headers });
+  const response = await providerFetch(url, { headers }, 20_000, AI_PROVIDER_DETAILS[provider].label);
   if (!response.ok) {
     const message = response.status === 401 || response.status === 403
       ? 'Le fournisseur a refusé la clé. Vérifie sa validité et ses autorisations.'
@@ -314,7 +315,7 @@ export async function callTextProviderWithGeminiFallback(apiKeys: string[], mode
     } catch (error) {
       lastError = error;
       const status = error && typeof error === 'object' && 'statusCode' in error ? Number((error as { statusCode?: unknown }).statusCode) : 0;
-      if (![429, 403, 502].includes(status)) throw error;
+      if (![429, 403, 502, 504].includes(status)) throw error;
     }
   }
   throw lastError || createError({ statusCode: 503, statusMessage: 'Toutes les clés Gemini disponibles sont indisponibles.' });
@@ -514,4 +515,64 @@ export async function readGithubReadme(repoUrl: string, apiKeys: string[] = []) 
     throw createError({ statusCode: 413, statusMessage: 'Le README est trop volumineux ou dans un format non pris en charge.' });
   }
   return Buffer.from(readme.content.replace(/\s+/gu, ''), 'base64').toString('utf8').slice(0, 12_000);
+}
+
+export async function readGithubRepositoryEvidence(repoUrl: string, apiKeys: string[] = []) {
+  let url: URL;
+  try {
+    url = new URL(repoUrl);
+  } catch {
+    throw createError({ statusCode: 400, statusMessage: 'Le lien du dépôt GitHub est invalide.' });
+  }
+  if (url.protocol !== 'https:' || url.hostname.toLowerCase() !== 'github.com' || url.username || url.password) {
+    throw createError({ statusCode: 400, statusMessage: 'Seuls les dépôts GitHub sont pris en charge.' });
+  }
+  const [, owner, repoName] = url.pathname.split('/');
+  if (!owner || !repoName) {
+    throw createError({ statusCode: 400, statusMessage: 'Le lien doit pointer directement vers un dépôt GitHub.' });
+  }
+  const repo = repoName.replace(/\.git$/u, '');
+  const credentials = [...new Set(apiKeys.filter(Boolean))];
+  if (!credentials.length) credentials.push('');
+  const headersFor = (apiKey: string) => {
+    const headers: Record<string, string> = { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28' };
+    if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+    return headers;
+  };
+
+  let readme = '';
+  try { readme = await readGithubReadme(repoUrl, credentials); } catch { /* Continue with repository metadata and manifests. */ }
+
+  const parts: string[] = [];
+  for (const apiKey of credentials) {
+    try {
+      const repoResponse = await providerFetch(`${apiBase('github')}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, { headers: headersFor(apiKey) }, 8_000, 'GitHub');
+      if (repoResponse.ok) {
+        const metadata = await providerJson<{ description?: unknown; language?: unknown; topics?: unknown; homepage?: unknown; default_branch?: unknown; stargazers_count?: unknown; forks_count?: unknown }>(repoResponse, 'GitHub');
+        parts.push(`Métadonnées du dépôt:\n${JSON.stringify(metadata)}`);
+        break;
+      }
+      if (!shouldTryNextGithubCredential(repoResponse.status)) break;
+    } catch {
+      continue;
+    }
+  }
+
+  for (const apiKey of credentials) {
+    for (const fileName of ['package.json', 'pyproject.toml', 'Cargo.toml', 'go.mod']) {
+      try {
+        const response = await providerFetch(`${apiBase('github')}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${fileName}`, { headers: headersFor(apiKey) }, 8_000, 'GitHub');
+        if (!response.ok) continue;
+        const payload = await providerJson<{ content?: unknown; encoding?: unknown }>(response, 'GitHub');
+        if (payload.encoding === 'base64' && typeof payload.content === 'string') {
+          const content = Buffer.from(payload.content.replace(/\s+/gu, ''), 'base64').toString('utf8').slice(0, 15_000);
+          parts.push(`${fileName}:\n${content}`);
+        }
+      } catch {
+        continue;
+      }
+    }
+  }
+  if (readme) parts.unshift(`README:\n${readme}`);
+  return parts.join('\n\n---\n\n').slice(0, 45_000);
 }

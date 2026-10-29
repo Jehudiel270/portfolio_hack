@@ -38,7 +38,7 @@ const STATIC_MODEL_CATALOG: Partial<Record<AiProvider, Array<{ id: string; label
 async function discoverOpenAiCompatibleModels(provider: AiProvider, apiKey: string, fallback: Array<{id:string;label:string;description:string}>, url: string, authorizationPrefix = 'Bearer') {
   if (!apiKey) return fallback;
   try {
-    const response = await fetch(url, { headers: { authorization: `${authorizationPrefix} ${apiKey}` } });
+    const response = await fetch(url, { headers: { authorization: `${authorizationPrefix} ${apiKey}` }, signal: AbortSignal.timeout(8_000) });
     if (!response.ok) return fallback;
     const payload = await response.json() as { data?: Array<{ id?: string }> };
     const models = (payload.data || []).map(item => item.id?.trim()).filter((id): id is string => Boolean(id));
@@ -52,7 +52,7 @@ async function discoverOpenAiCompatibleModels(provider: AiProvider, apiKey: stri
 async function discoverGeminiModels(apiKey: string) {
   if (!apiKey) return GEMINI_MODEL_FALLBACK;
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}&pageSize=100`);
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}&pageSize=100`, { signal: AbortSignal.timeout(8_000) });
     if (!response.ok) return GEMINI_MODEL_FALLBACK;
     const payload = await response.json() as { models?: Array<{ name?: string; displayName?: string; description?: string; supportedGenerationMethods?: string[] }> };
     const models = (payload.models || [])
