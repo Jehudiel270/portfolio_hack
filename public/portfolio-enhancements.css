@@ -3361,3 +3361,33 @@ html.admin-motion-disabled .route-leave-to { opacity: 1; filter: none; transform
   .admin-page :is(.stat-card,.project-folder-card,.project-list-row,.project-document-window,.admin-gemini-draft,.admin-settings-group,.admin-empty) { animation: none !important; }
   html.admin-smooth-scroll { scroll-behavior: auto; }
 }
+
+select {
+  color-scheme: dark;
+}
+
+select option,
+select optgroup {
+  background-color: #071329;
+  color: #e5f2ff;
+}
+
+select option:checked {
+  background-color: #0b5967;
+  color: #f0feff;
+}
+
+html[data-theme='light'] select {
+  color-scheme: light;
+}
+
+html[data-theme='light'] select option,
+html[data-theme='light'] select optgroup {
+  background-color: #edf3fa;
+  color: #17243a;
+}
+
+html[data-theme='light'] select option:checked {
+  background-color: #c5e8eb;
+  color: #123d48;
+}
