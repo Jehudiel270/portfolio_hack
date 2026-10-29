@@ -21,6 +21,7 @@ export const AI_PROVIDER_DETAILS = {
   anthropic: { label: 'Anthropic Claude', defaultModel: 'claude-haiku-4-5', capabilities: ['Rédaction'], balance: 'Solde non consultable par cette API.' },
   mistral: { label: 'Mistral AI', defaultModel: 'mistral-small-latest', capabilities: ['Rédaction'], balance: 'Solde non consultable par cette API.' },
   deepseek: { label: 'DeepSeek', defaultModel: 'deepseek-chat', capabilities: ['Rédaction'], balance: 'Solde non consultable par cette API.' },
+  stability: { label: 'Stability AI', defaultModel: 'stable-image-ultra', capabilities: ['Génération d’images sans interface ni logo parasite'], balance: 'Crédit disponible via le tableau de bord Stability AI.' },
   github: { label: 'GitHub (lecture seule)', defaultModel: 'REST-API', capabilities: ['Lire les dépôts et README publics/privés autorisés'], balance: 'Quota REST disponible via l’API officielle.' },
   screenshotone: { label: 'ScreenshotOne', defaultModel: 'ScreenshotOne-API', capabilities: ['Capture réelle de sites publics · bureau, mobile ou pleine page'], balance: 'Le plan gratuit annonce 100 captures par mois. Le quota restant se consulte dans le tableau de bord du fournisseur.' },
 } as const;

@@ -2518,6 +2518,9 @@ html[data-theme='light'][data-public-site='true'] .public-light-veil {
 .admin-ai-provider-card small { overflow-wrap: anywhere; font-size: 10px; }
 .admin-ai-provider-card .status-chip { font-size: 9px; }
 .admin-ai-provider-card .status-chip.is-configured { color: #83f4bf; }
+.admin-secret-input { display: flex; min-width: 0; align-items: center; gap: 6px; }
+.admin-secret-input input { flex: 1 1 auto; }
+.admin-secret-input .icon-button { flex: 0 0 34px; width: 34px; height: 34px; }
 .admin-ai-provider-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
 .admin-ai-provider-test { display: flex; align-items: flex-start; gap: 5px; color: #83f4bf; }
 .admin-ai-provider-footnote { margin: 0; font-size: 10px; }
@@ -2536,6 +2539,13 @@ html[data-theme='light'][data-public-site='true'] .public-light-veil {
 .admin-ai-site-capture-preview { display: grid; justify-items: start; gap: 8px; }
 .admin-ai-site-capture-preview img { width: min(100%, 720px); max-height: 70vh; object-fit: contain; border: 1px solid var(--line); border-radius: 6px; background: rgba(2, 8, 18, .72); }
 .admin-ai-site-capture-preview small { max-width: 100%; color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
+.admin-github-accounts { display: grid; min-width: 0; gap: 9px; padding: 10px; border: 1px solid rgba(74, 131, 204, .22); border-radius: 7px; background: rgba(4, 12, 28, .3); }
+.admin-github-accounts > p { margin: 0; font-size: 10px; }
+.admin-github-accounts label { display: grid; min-width: 0; gap: 4px; color: var(--muted); font-size: 11px; }
+.admin-github-accounts input { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 5px; background: rgba(3, 9, 21, .78); color: var(--text); }
+.admin-github-account-list { display: grid; gap: 6px; }
+.admin-github-account { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: rgba(3, 9, 21, .3); }
+.admin-github-account > span { display: inline-flex; min-width: 0; align-items: center; gap: 7px; overflow-wrap: anywhere; font-size: 11px; }
 .analytics-table { max-width: 100%; margin: 14px 0; overflow-x: auto; }
 .analytics-table > h2 { font-size: 13px; }
 
@@ -2553,6 +2563,9 @@ html[data-theme='light'] .admin-ai-provider-card { background: rgba(255, 255, 25
 html[data-theme='light'] .admin-ai-cover-generator { background: rgba(223, 244, 246, .7); }
 html[data-theme='light'] .admin-ai-site-capture { background: rgba(237, 232, 249, .7); }
 html[data-theme='light'] .admin-ai-site-capture-controls select { background: rgba(255, 255, 255, .88); }
+html[data-theme='light'] .admin-github-accounts { background: rgba(255, 255, 255, .35); }
+html[data-theme='light'] .admin-github-accounts input { background: rgba(255, 255, 255, .88); }
+html[data-theme='light'] .admin-github-account { background: rgba(255, 255, 255, .65); }
 
 @media (max-width: 560px) {
   .admin-gemini-assistant { padding: 11px; }

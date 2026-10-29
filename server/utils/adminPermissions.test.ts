@@ -31,6 +31,9 @@ test('admin permission resolution covers operational actions', () => {
   assert.equal(resolveAdminPermission('/api/admin/ai/draft', 'GET'), null);
   assert.equal(resolveAdminPermission('/api/admin/ai/image', 'POST'), 'ai.generate');
   assert.equal(resolveAdminPermission('/api/admin/ai/capture', 'POST'), 'ai.generate');
+  assert.equal(resolveAdminPermission('/api/admin/ai/github-accounts', 'GET'), 'ai.generate');
+  assert.equal(resolveAdminPermission('/api/admin/ai/github-accounts', 'POST'), 'ai.generate');
+  assert.equal(resolveAdminPermission('/api/admin/ai/github-accounts/0f8fad5bd9cb469fa16570867728950e', 'DELETE'), 'ai.generate');
   assert.equal(resolveAdminPermission('/api/admin/ai/providers', 'GET'), 'ai.generate');
   assert.equal(resolveAdminPermission('/api/admin/ai/usage', 'GET'), 'ai.generate');
 });

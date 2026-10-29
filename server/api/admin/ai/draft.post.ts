@@ -4,7 +4,7 @@ import { AI_DRAFT_FIELDS, AI_TEXT_PROVIDERS, type AiDraftResource, type AiTextPr
 import { requireAdmin } from '~/server/utils/auth';
 import { enforceAiRequestLimit } from '~/server/utils/aiRateLimit';
 import { contentSchemas } from '~/server/utils/content';
-import { addProviderUsage, callTextProvider, getProviderCredential, readGithubReadme } from '~/server/utils/aiProviders';
+import { addProviderUsage, callTextProvider, callTextProviderWithGeminiFallback, getProviderCredential, listGithubCredentials, listGeminiCredentials, readGithubReadme } from '~/server/utils/aiProviders';
 import { validatePublicHttpsUrl } from '~/server/utils/publicWebUrl';
 
 const profileSchema = z.object({
@@ -54,9 +54,9 @@ export default defineEventHandler(async (event) => {
   let repositoryContext = '';
   let contextUrl = '';
   if (resource === 'projects' && typeof current.repoUrl === 'string' && current.repoUrl.trim()) {
-    const github = await getProviderCredential('github');
-    repositoryContext = await readGithubReadme(current.repoUrl, github?.apiKey);
-    await addProviderUsage('github');
+    const githubAccounts = await listGithubCredentials();
+    repositoryContext = await readGithubReadme(current.repoUrl, githubAccounts.map(account => account.apiKey));
+    if (githubAccounts.length) await addProviderUsage('github');
   }
   if (resource === 'projects' && typeof current.demoUrl === 'string' && current.demoUrl.trim()) {
     contextUrl = await validatePublicHttpsUrl(current.demoUrl);
@@ -78,7 +78,15 @@ export default defineEventHandler(async (event) => {
     ...(repositoryContext ? { README_GitHub: repositoryContext } : {}),
   });
 
-  const result = await callTextProvider(provider, credential.apiKey, credential.model, systemInstruction, prompt, provider === 'gemini' ? contextUrl : undefined);
+  const result = provider === 'gemini'
+    ? await callTextProviderWithGeminiFallback(
+        ((await listGeminiCredentials()).map(account => account.apiKey).length ? (await listGeminiCredentials()).map(account => account.apiKey) : [credential.apiKey]),
+        credential.model,
+        systemInstruction,
+        prompt,
+        contextUrl,
+      )
+    : await callTextProvider(provider, credential.apiKey, credential.model, systemInstruction, prompt);
   await addProviderUsage(provider, result.input, result.output);
   let generatedDraft: unknown;
   try {

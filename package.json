@@ -9,7 +9,7 @@
     "build": "nuxt build",
     "start": "node .output/server/index.mjs",
     "check": "nuxt typecheck",
-    "test": "tsx --test server/utils/portfolioFeatures.test.ts server/utils/totp.test.ts server/utils/adminPermissions.test.ts server/utils/aiRateLimit.test.ts server/utils/publicWebUrl.test.ts server/utils/siteCapture.test.ts server/utils/cinematicIntro.test.ts shared/rich-text.test.ts",
+    "test": "tsx --test server/utils/portfolioFeatures.test.ts server/utils/totp.test.ts server/utils/adminPermissions.test.ts server/utils/aiRateLimit.test.ts server/utils/publicWebUrl.test.ts server/utils/siteCapture.test.ts server/utils/githubAccounts.test.ts server/utils/cinematicIntro.test.ts shared/rich-text.test.ts",
     "admin:create": "node --env-file=.env --import tsx scripts/admin-create.ts",
     "admin:mfa-reset": "node --env-file=.env --import tsx scripts/admin-mfa-reset.ts",
     "db:migrate": "node --env-file=.env --import tsx scripts/db-migrate.ts"

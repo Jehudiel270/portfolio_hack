@@ -66,6 +66,8 @@ export function resolveAdminPermission(path: string, method: string): AdminPermi
   if (path === '/api/admin/ai/draft') return method === 'POST' ? 'ai.generate' : null;
   if (path === '/api/admin/ai/image') return method === 'POST' ? 'ai.generate' : null;
   if (path === '/api/admin/ai/capture') return method === 'POST' ? 'ai.generate' : null;
+  if (path === '/api/admin/ai/github-accounts') return ['GET', 'POST'].includes(method) ? 'ai.generate' : null;
+  if (/^\/api\/admin\/ai\/github-accounts\/(?:legacy|[a-f0-9]{32})$/u.test(path)) return method === 'DELETE' ? 'ai.generate' : null;
   if (path === '/api/admin/ai/providers' || path === '/api/admin/ai/usage') return method === 'GET' ? 'ai.generate' : null;
   const contentMatch = path.match(/^\/api\/admin\/content\/(projects|journey|educations|certifications|achievements|testimonials|skills|technologies)(?:\/([^/]+))?(?:\/([^/]+))?$/);
   if (contentMatch) {

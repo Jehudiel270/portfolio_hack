@@ -6,6 +6,7 @@ import { AI_PROVIDER_DETAILS, type AiProvider, type AiTextProvider } from '~/sha
 import { getDatabase } from '~/server/utils/database';
 import { aiProviderCredentials, aiProviderUsage } from '~/server/utils/schema';
 import { buildScreenshotRequest, MAX_SITE_CAPTURE_BYTES, type SiteCaptureMode } from '~/server/utils/siteCapture';
+import { createGithubAccount, decodeGithubAccounts, encodeGithubAccounts, MAX_GITHUB_ACCOUNTS, shouldTryNextGithubCredential } from '~/server/utils/githubAccounts';
 
 const providerNames = Object.keys(AI_PROVIDER_DETAILS) as AiProvider[];
 
@@ -54,7 +55,117 @@ export async function getProviderCredential(provider: AiProvider) {
     return apiKey ? { apiKey, model: String(config.geminiModel || AI_PROVIDER_DETAILS.gemini.defaultModel) } : null;
   }
   if (!credential) return null;
+  if (provider === 'github') {
+    const [account] = decodeGithubAccounts(decryptProviderKey(credential.encryptedKey));
+    return account ? { apiKey: account.apiKey, model: credential.model } : null;
+  }
+  if (provider === 'gemini') {
+    const [account] = decodeNamedCredentials(credential.encryptedKey);
+    return account ? { apiKey: account.apiKey, model: credential.model } : null;
+  }
   return { apiKey: decryptProviderKey(credential.encryptedKey), model: credential.model };
+}
+
+export async function listGithubCredentials() {
+  const [credential] = await getDatabase()
+    .select()
+    .from(aiProviderCredentials)
+    .where(eq(aiProviderCredentials.provider, 'github'))
+    .limit(1);
+  return credential ? decodeGithubAccounts(decryptProviderKey(credential.encryptedKey)) : [];
+}
+
+export async function addGithubCredential(name: string, apiKey: string) {
+  const database = getDatabase();
+  const [credential] = await database.select().from(aiProviderCredentials)
+    .where(eq(aiProviderCredentials.provider, 'github')).limit(1);
+  const accounts = credential ? decodeGithubAccounts(decryptProviderKey(credential.encryptedKey)) : [];
+  if (accounts.length >= MAX_GITHUB_ACCOUNTS) throw createError({ statusCode: 409, statusMessage: `La limite de ${MAX_GITHUB_ACCOUNTS} comptes GitHub est atteinte.` });
+  accounts.push(createGithubAccount(name, apiKey));
+  const encryptedKey = encryptProviderKey(encodeGithubAccounts(accounts));
+  if (credential) {
+    await database.update(aiProviderCredentials)
+      .set({ encryptedKey, updatedAt: new Date() })
+      .where(eq(aiProviderCredentials.provider, 'github'));
+  } else {
+    await database.insert(aiProviderCredentials).values({
+      provider: 'github',
+      encryptedKey,
+      model: AI_PROVIDER_DETAILS.github.defaultModel,
+    });
+  }
+  return accounts.map(account => ({ id: account.id, name: account.name }));
+}
+
+export async function removeGithubCredential(id: string) {
+  const database = getDatabase();
+  const [credential] = await database.select().from(aiProviderCredentials)
+    .where(eq(aiProviderCredentials.provider, 'github')).limit(1);
+  if (!credential) return null;
+  const accounts = decodeGithubAccounts(decryptProviderKey(credential.encryptedKey));
+  const nextAccounts = accounts.filter(account => account.id !== id);
+  if (accounts.length === nextAccounts.length) return null;
+  if (!nextAccounts.length) {
+    await database.delete(aiProviderCredentials).where(eq(aiProviderCredentials.provider, 'github'));
+    return [];
+  }
+  const encryptedKey = encryptProviderKey(encodeGithubAccounts(nextAccounts));
+  await database.update(aiProviderCredentials)
+    .set({ encryptedKey, updatedAt: new Date() })
+    .where(eq(aiProviderCredentials.provider, 'github'));
+  return nextAccounts.map(account => ({ id: account.id, name: account.name }));
+}
+
+type NamedAiCredential = { id: string; name: string; apiKey: string };
+const MAX_GEMINI_KEYS = 10;
+
+function decodeNamedCredentials(value: string): NamedAiCredential[] {
+  try {
+    const parsed = JSON.parse(decryptProviderKey(value)) as { version?: unknown; accounts?: unknown };
+    if (parsed.version === 1 && Array.isArray(parsed.accounts)) {
+      return parsed.accounts.filter((item): item is NamedAiCredential =>
+        Boolean(item && typeof item === 'object' && typeof (item as NamedAiCredential).id === 'string' && typeof (item as NamedAiCredential).name === 'string' && typeof (item as NamedAiCredential).apiKey === 'string'));
+    }
+  } catch { /* compatibility with the legacy plain-key format */ }
+  return [{ id: 'legacy', name: 'Clé existante', apiKey: decryptProviderKey(value) }];
+}
+
+export async function listGeminiCredentials() {
+  const [credential] = await getDatabase().select().from(aiProviderCredentials)
+    .where(eq(aiProviderCredentials.provider, 'gemini')).limit(1);
+  return credential ? decodeNamedCredentials(credential.encryptedKey) : [];
+}
+
+export async function addGeminiCredential(name: string, apiKey: string) {
+  const database = getDatabase();
+  const [credential] = await database.select().from(aiProviderCredentials)
+    .where(eq(aiProviderCredentials.provider, 'gemini')).limit(1);
+  const accounts = credential ? decodeNamedCredentials(credential.encryptedKey) : [];
+  if (accounts.length >= MAX_GEMINI_KEYS) throw createError({ statusCode: 409, statusMessage: `La limite de ${MAX_GEMINI_KEYS} clés Gemini est atteinte.` });
+  accounts.push({ id: `gemini-${randomBytes(8).toString('hex')}`, name, apiKey });
+  const encryptedKey = encryptProviderKey(JSON.stringify({ version: 1, accounts }));
+  if (credential) {
+    await database.update(aiProviderCredentials).set({ encryptedKey, updatedAt: new Date() }).where(eq(aiProviderCredentials.provider, 'gemini'));
+  } else {
+    await database.insert(aiProviderCredentials).values({ provider: 'gemini', encryptedKey, model: AI_PROVIDER_DETAILS.gemini.defaultModel });
+  }
+  return accounts.map(({ id, name }) => ({ id, name }));
+}
+
+export async function removeGeminiCredential(id: string) {
+  const database = getDatabase();
+  const [credential] = await database.select().from(aiProviderCredentials)
+    .where(eq(aiProviderCredentials.provider, 'gemini')).limit(1);
+  if (!credential) return null;
+  const accounts = decodeNamedCredentials(credential.encryptedKey).filter(account => account.id !== id);
+  if (!accounts.length) {
+    await database.delete(aiProviderCredentials).where(eq(aiProviderCredentials.provider, 'gemini'));
+    return [];
+  }
+  await database.update(aiProviderCredentials)
+    .set({ encryptedKey: encryptProviderKey(JSON.stringify({ version: 1, accounts })), updatedAt: new Date() })
+    .where(eq(aiProviderCredentials.provider, 'gemini'));
+  return accounts.map(({ id, name }) => ({ id, name }));
 }
 
 export async function addProviderUsage(provider: AiProvider, inputTokens = 0, outputTokens = 0) {
@@ -83,6 +194,7 @@ function apiBase(provider: AiProvider) {
     case 'anthropic': return 'https://api.anthropic.com/v1';
     case 'mistral': return 'https://api.mistral.ai/v1';
     case 'deepseek': return 'https://api.deepseek.com';
+    case 'stability': return 'https://api.stability.ai';
     case 'github': return 'https://api.github.com';
     case 'gemini': return 'https://generativelanguage.googleapis.com/v1beta';
     case 'screenshotone': return 'https://api.screenshotone.com';
@@ -194,6 +306,53 @@ export async function callTextProvider(provider: AiTextProvider, apiKey: string,
   return { text, ...usage };
 }
 
+export async function callTextProviderWithGeminiFallback(apiKeys: string[], model: string, system: string, prompt: string, contextUrl?: string) {
+  let lastError: unknown;
+  for (const apiKey of apiKeys) {
+    try {
+      return await callTextProvider('gemini', apiKey, model, system, prompt, contextUrl);
+    } catch (error) {
+      lastError = error;
+      const status = error && typeof error === 'object' && 'statusCode' in error ? Number((error as { statusCode?: unknown }).statusCode) : 0;
+      if (![429, 403, 502].includes(status)) throw error;
+    }
+  }
+  throw lastError || createError({ statusCode: 503, statusMessage: 'Toutes les clés Gemini disponibles sont indisponibles.' });
+}
+
+export async function generateGeminiImage(apiKey: string, prompt: string) {
+  const model = 'imagen-4.0-generate-001';
+  const response = await providerFetch(`${apiBase('gemini')}/models/${model}:predict`, {
+    method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify({ instances: [{ prompt }], parameters: { sampleCount: 1, aspectRatio: '16:9' } }),
+  }, 60_000, 'Gemini Images');
+  if (!response.ok) {
+    const statusMessage = response.status === 429 ? 'Quota image Gemini dépassé ou limite de débit atteinte.' : response.status === 401 || response.status === 403 ? 'Gemini Images refuse cette clé ou ce modèle.' : `Gemini Images n’a pas pu générer l’image (HTTP ${response.status}).`;
+    throw createError({ statusCode: response.status === 429 ? 429 : 502, statusMessage });
+  }
+  const payload = await providerJson<{ predictions?: Array<{ bytesBase64Encoded?: unknown }> }>(response, 'Gemini Images');
+  const encoded = payload.predictions?.[0]?.bytesBase64Encoded;
+  if (typeof encoded !== 'string') throw createError({ statusCode: 502, statusMessage: 'Gemini Images n’a pas renvoyé une image exploitable.' });
+  return `data:image/png;base64,${encoded}`;
+}
+
+export async function generateStabilityImage(apiKey: string, prompt: string) {
+  const form = new FormData();
+  form.append('prompt', `${prompt}\nNo visible text, no letters, no words, no logo, no watermark, no product UI, no fake interface.`);
+  form.append('aspect_ratio', '16:9');
+  form.append('output_format', 'png');
+  form.append('mode', 'text-to-image');
+  const response = await providerFetch(`${apiBase('stability')}/v2beta/stable-image/generate/ultra`, {
+    method: 'POST', headers: { authorization: `Bearer ${apiKey}`, accept: 'image/*' }, body: form,
+  }, 60_000, 'Stability AI');
+  if (!response.ok) {
+    throw createError({ statusCode: response.status === 429 ? 429 : 502, statusMessage: response.status === 401 || response.status === 403 ? 'Stability AI a refusé la clé configurée.' : `Stability AI n’a pas pu générer l’image (HTTP ${response.status}).` });
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (!buffer.length) throw createError({ statusCode: 502, statusMessage: 'Stability AI a renvoyé une image vide.' });
+  return `data:image/png;base64,${buffer.toString('base64')}`;
+}
+
 export async function captureSiteScreenshot(apiKey: string, url: string, mode: SiteCaptureMode) {
   const response = await providerFetch(`${apiBase('screenshotone')}/take`, {
     method: 'POST',
@@ -267,7 +426,7 @@ export async function generateOpenAiImage(apiKey: string, prompt: string) {
   return `data:image/png;base64,${encoded}`;
 }
 
-export async function readGithubReadme(repoUrl: string, apiKey?: string) {
+export async function readGithubReadme(repoUrl: string, apiKeys: string[] = []) {
   let url: URL;
   try {
     url = new URL(repoUrl);
@@ -281,12 +440,20 @@ export async function readGithubReadme(repoUrl: string, apiKey?: string) {
   if (!owner || !repo || !/^[A-Za-z0-9_.-]{1,100}$/u.test(owner) || !/^[A-Za-z0-9_.-]{1,100}$/u.test(repo.replace(/\.git$/u, ''))) {
     throw createError({ statusCode: 400, statusMessage: 'Le lien doit pointer directement vers un dépôt GitHub.' });
   }
-  const headers: Record<string, string> = { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28' };
-  if (apiKey) headers.authorization = `Bearer ${apiKey}`;
   const path = `${apiBase('github')}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo.replace(/\.git$/u, ''))}/readme`;
-  const response = await providerFetch(path, { headers });
-  if (response.status === 404) throw createError({ statusCode: 404, statusMessage: 'README introuvable ou dépôt GitHub privé sans jeton autorisé.' });
-  if (response.status === 403 || response.status === 429) throw createError({ statusCode: 429, statusMessage: 'Quota GitHub atteint ou le jeton ne peut pas lire ce dépôt.' });
+  const credentials = [...new Set(apiKeys.filter(Boolean))];
+  if (!credentials.length) credentials.push('');
+  let response: Response | null = null;
+  for (const apiKey of credentials) {
+    const headers: Record<string, string> = { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28' };
+    if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+    response = await providerFetch(path, { headers });
+    if (response.ok || !shouldTryNextGithubCredential(response.status)) break;
+  }
+  if (!response) throw createError({ statusCode: 502, statusMessage: 'Aucun compte GitHub n’est disponible pour lire ce dépôt.' });
+  if (response.status === 404) throw createError({ statusCode: 404, statusMessage: 'README introuvable ou aucun des comptes GitHub enregistrés n’a accès au dépôt.' });
+  if (response.status === 403 || response.status === 429) throw createError({ statusCode: 429, statusMessage: 'Quota GitHub atteint ou aucun des comptes enregistrés ne peut lire ce dépôt.' });
+  if (response.status === 401) throw createError({ statusCode: 502, statusMessage: 'GitHub a refusé les jetons configurés. Vérifie leur validité dans IA & modèles.' });
   if (!response.ok) throw createError({ statusCode: 502, statusMessage: `GitHub n’a pas pu lire ce dépôt (HTTP ${response.status}).` });
   const declaredLength = Number(response.headers.get('content-length') || 0);
   if (declaredLength > 200_000) throw createError({ statusCode: 413, statusMessage: 'Le README est trop volumineux.' });

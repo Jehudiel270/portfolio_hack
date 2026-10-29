@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
-import { CheckCircle2, Loader2, RotateCw, Save, Trash2 } from 'lucide-vue-next';
+import { CheckCircle2, Eye, EyeOff, Loader2, RotateCw, Save, Trash2 } from 'lucide-vue-next';
 import type { AiProvider } from '~/shared/adminAi';
 
 type ProviderRow = {
@@ -14,8 +14,18 @@ type ProviderRow = {
   model: string;
 };
 type UsageRow = { day: string; provider: string; requests: number; inputTokens: number; outputTokens: number };
+type GithubAccountRow = { id: string; name: string };
 const providers = ref<ProviderRow[]>([]);
 const usage = ref<UsageRow[]>([]);
+const githubAccounts = ref<GithubAccountRow[]>([]);
+const githubAccountName = ref('');
+const githubToken = ref('');
+const geminiAccounts = ref<GithubAccountRow[]>([]);
+const geminiAccountName = ref('');
+const geminiToken = ref('');
+const showGeminiKey = ref(false);
+const showGithubKey = ref(false);
+const showProviderKeys = reactive<Record<string, boolean>>({});
 const keys = reactive<Record<string, string>>({});
 const models = reactive<Record<string, string>>({});
 const saving = ref('');
@@ -39,13 +49,76 @@ function getError(cause: unknown) {
 
 async function load() {
   error.value = '';
-  const [providerResponse, usageResponse] = await Promise.all([
+  const [providerResponse, usageResponse, githubAccountResponse, geminiAccountResponse] = await Promise.all([
     $fetch<{ providers: ProviderRow[] }>('/api/admin/ai/providers'),
     $fetch<UsageRow[]>('/api/admin/ai/usage'),
+    $fetch<GithubAccountRow[]>('/api/admin/ai/github-accounts'),
+    $fetch<GithubAccountRow[]>('/api/admin/ai/gemini-accounts'),
   ]);
   providers.value = providerResponse.providers;
   usage.value = usageResponse;
+  githubAccounts.value = githubAccountResponse;
+  geminiAccounts.value = geminiAccountResponse;
   for (const provider of providers.value) models[provider.id] = provider.model || provider.defaultModel;
+}
+
+async function addGithubAccount() {
+  error.value = '';
+  notice.value = '';
+  saving.value = 'github';
+  try {
+    const result = await $fetch<{ accounts: GithubAccountRow[] }>('/api/admin/ai/github-accounts', {
+      method: 'POST',
+      body: { name: githubAccountName.value, apiKey: githubToken.value },
+      headers: csrfHeaders(),
+    });
+    githubAccounts.value = result.accounts;
+    githubAccountName.value = '';
+    githubToken.value = '';
+    notice.value = 'Compte GitHub enregistré et chiffré côté serveur.';
+    await load();
+  } catch (cause) {
+    error.value = getError(cause);
+  } finally {
+    saving.value = '';
+  }
+}
+
+async function addGeminiAccount() {
+  error.value = ''; notice.value = ''; saving.value = 'gemini-accounts';
+  try {
+    const result = await $fetch<{ accounts: GithubAccountRow[] }>('/api/admin/ai/gemini-accounts', { method: 'POST', body: { name: geminiAccountName.value, apiKey: geminiToken.value }, headers: csrfHeaders() });
+    geminiAccounts.value = result.accounts; geminiAccountName.value = ''; geminiToken.value = ''; notice.value = 'Clé Gemini ajoutée et chiffrée. Le système basculera automatiquement en cas de limite.'; await load();
+  } catch (cause) { error.value = getError(cause); } finally { saving.value = ''; }
+}
+
+async function removeGeminiAccount(account: GithubAccountRow) {
+  if (!confirm(`Retirer la clé Gemini « ${account.name} » ?`)) return;
+  saving.value = 'gemini-accounts'; error.value = ''; notice.value = '';
+  try {
+    const result = await $fetch<{ accounts: GithubAccountRow[] }>(`/api/admin/ai/gemini-accounts/${account.id}`, { method: 'DELETE', headers: csrfHeaders() });
+    geminiAccounts.value = result.accounts; notice.value = `Clé Gemini « ${account.name} » retirée.`; await load();
+  } catch (cause) { error.value = getError(cause); } finally { saving.value = ''; }
+}
+
+async function removeGithubAccount(account: GithubAccountRow) {
+  if (!confirm(`Retirer le jeton du compte « ${account.name} » ?`)) return;
+  error.value = '';
+  notice.value = '';
+  saving.value = 'github';
+  try {
+    const result = await $fetch<{ accounts: GithubAccountRow[] }>(`/api/admin/ai/github-accounts/${account.id}`, {
+      method: 'DELETE',
+      headers: csrfHeaders(),
+    });
+    githubAccounts.value = result.accounts;
+    notice.value = `Jeton du compte « ${account.name} » retiré.`;
+    await load();
+  } catch (cause) {
+    error.value = getError(cause);
+  } finally {
+    saving.value = '';
+  }
 }
 
 async function refresh() {
@@ -139,23 +212,56 @@ onMounted(() => {
         </div>
         <small v-if="provider.configured&&!provider.managedInDashboard" class="muted">Clé héritée de l’environnement serveur. Enregistre-la ici pour la chiffrer dans le coffre.</small>
         <p>{{ provider.capabilities.join(' · ') }}</p>
+        <template v-if="provider.id==='gemini'">
+          <div class="admin-github-accounts">
+            <p class="muted">Plusieurs clés Gemini peuvent être enregistrées. Elles sont essayées dans l’ordre pour la rédaction et la génération d’images lorsqu’une limite 429 ou un refus 403 se produit.</p>
+            <div v-if="geminiAccounts.length" class="admin-github-account-list">
+              <div v-for="account in geminiAccounts" :key="account.id" class="admin-github-account"><span><CheckCircle2 :size="14" /> {{ account.name }}</span><button class="icon-button danger" type="button" :disabled="saving==='gemini-accounts'" :aria-label="`Retirer la clé Gemini ${account.name}`" @click="removeGeminiAccount(account)"><Trash2 :size="14" /></button></div>
+            </div>
+            <p v-else class="muted">Aucune clé Gemini nommée enregistrée.</p>
+            <label>Nom de la clé<input v-model.trim="geminiAccountName" maxlength="60" placeholder="Ex. Gemini principal, quota secondaire"></label>
+            <label>Clé API Gemini<span class="admin-secret-input"><input v-model="geminiToken" :type="showGeminiKey?'text':'password'" autocomplete="new-password" maxlength="500" placeholder="AIza…"><button class="icon-button" type="button" :aria-label="showGeminiKey?'Masquer la clé':'Afficher la clé'" @click="showGeminiKey=!showGeminiKey"><EyeOff v-if="showGeminiKey" :size="14" /><Eye v-else :size="14" /></button></span></label>
+            <small class="muted">Maximum 10 clés. Les clés restent chiffrées et ne sont jamais affichées après enregistrement.</small>
+            <button class="button" type="button" :disabled="saving==='gemini-accounts'||!geminiAccountName.trim()||geminiToken.trim().length<16||geminiAccounts.length>=10" @click="addGeminiAccount"><Loader2 v-if="saving==='gemini-accounts'" :size="14" class="admin-spinner" /><Save v-else :size="14" /> Ajouter la clé</button>
+          </div>
+          <label>Modèle Gemini<input v-model.trim="models[provider.id]" :placeholder="provider.defaultModel" maxlength="120"></label>
+        </template>
+        <template v-else-if="provider.id==='github'">
+          <div class="admin-github-accounts">
+            <p class="muted">L’assistant essaie les jetons enregistrés jusqu’à trouver un compte autorisé à lire le dépôt demandé. Les jetons restent chiffrés et ne sont jamais réaffichés.</p>
+            <div v-if="githubAccounts.length" class="admin-github-account-list">
+              <div v-for="account in githubAccounts" :key="account.id" class="admin-github-account">
+                <span><CheckCircle2 :size="14" /> {{ account.name }}</span>
+                <button class="icon-button danger" type="button" :disabled="saving==='github'" :aria-label="`Retirer le jeton de ${account.name}`" @click="removeGithubAccount(account)"><Trash2 :size="14" /></button>
+              </div>
+            </div>
+            <p v-else class="muted">Aucun compte GitHub enregistré.</p>
+            <label>Nom du compte
+              <input v-model.trim="githubAccountName" maxlength="60" placeholder="Ex. Personnel, client A, organisation">
+            </label>
+            <label>Jeton GitHub avec accès en lecture seule
+              <span class="admin-secret-input"><input v-model="githubToken" :type="showGithubKey?'text':'password'" autocomplete="new-password" maxlength="500" placeholder="Fine-grained token ou token classique"><button class="icon-button" type="button" :aria-label="showGithubKey?'Masquer le jeton':'Afficher le jeton'" @click="showGithubKey=!showGithubKey"><EyeOff v-if="showGithubKey" :size="14" /><Eye v-else :size="14" /></button></span>
+            </label>
+            <small class="muted">Maximum 25 jetons. Accorde uniquement l’accès « Contents: Read-only » aux dépôts nécessaires. Les tokens expirables sont préférables.</small>
+            <button class="button" type="button" :disabled="saving==='github'||!githubAccountName.trim()||githubToken.trim().length<20||githubAccounts.length>=25" @click="addGithubAccount"><Loader2 v-if="saving==='github'" :size="14" class="admin-spinner" /><Save v-else :size="14" /> Ajouter le compte</button>
+          </div>
+        </template>
+        <template v-else>
         <label>Modèle / API
-          <input v-model.trim="models[provider.id]" :disabled="provider.id === 'github'||provider.id==='screenshotone'" :placeholder="provider.defaultModel" maxlength="120">
+          <input v-model.trim="models[provider.id]" :disabled="provider.id==='screenshotone'" :placeholder="provider.defaultModel" maxlength="120">
         </label>
-        <label v-if="provider.id !== 'github'">Clé API
-          <input v-model="keys[provider.id]" type="password" autocomplete="new-password" :placeholder="provider.configured ? provider.managedInDashboard ? 'Laisser vide pour conserver la clé' : 'Clé d’environnement détectée · optionnel pour la chiffrer en base' : 'Coller la clé secrète ici'" maxlength="500">
+        <label>Clé API
+          <span class="admin-secret-input"><input v-model="keys[provider.id]" :type="showProviderKeys[provider.id]?'text':'password'" autocomplete="new-password" :placeholder="provider.configured ? provider.managedInDashboard ? 'Laisser vide pour conserver la clé' : 'Clé d’environnement détectée · optionnel pour la chiffrer en base' : 'Coller la clé secrète ici'" maxlength="500"><button class="icon-button" type="button" :aria-label="showProviderKeys[provider.id]?'Masquer la clé':'Afficher la clé'" @click="showProviderKeys[provider.id]=!showProviderKeys[provider.id]"><EyeOff v-if="showProviderKeys[provider.id]" :size="14" /><Eye v-else :size="14" /></button></span>
         </label>
-        <label v-else>Jeton GitHub en lecture seule
-          <input v-model="keys[provider.id]" type="password" autocomplete="new-password" :placeholder="provider.configured ? 'Laisser vide pour conserver le jeton' : 'Facultatif · fine-grained read-only'" maxlength="500">
-        </label>
+        </template>
         <small class="muted">{{ provider.balance }}</small>
         <small v-if="provider.id !== 'github'&&provider.id!=='screenshotone'&&provider.configured" class="muted">Usage local · {{ usageFor(provider.id).requests }} requêtes · {{ usageFor(provider.id).input }} jetons entrée / {{ usageFor(provider.id).output }} sortie (30 jours). Le coût exact est calculé par le fournisseur.</small>
         <small v-if="provider.id==='screenshotone'&&provider.configured" class="muted">Usage local · {{ usageFor(provider.id).requests }} captures sur les 30 derniers jours.</small>
         <small v-if="testResults[provider.id]" class="admin-ai-provider-test" role="status"><CheckCircle2 :size="14" /> {{ testResults[provider.id] }}</small>
         <div class="admin-ai-provider-actions">
-          <button class="button" type="button" :disabled="saving===provider.id" @click="save(provider)"><Loader2 v-if="saving===provider.id" :size="14" class="admin-spinner" /><Save v-else :size="14" /> Enregistrer</button>
+          <button v-if="provider.id!=='github'" class="button" type="button" :disabled="saving===provider.id" @click="save(provider)"><Loader2 v-if="saving===provider.id" :size="14" class="admin-spinner" /><Save v-else :size="14" /> Enregistrer</button>
           <button v-if="provider.id!=='screenshotone'" class="button secondary" type="button" :disabled="!provider.configured||testing===provider.id" @click="test(provider)"><Loader2 v-if="testing===provider.id" :size="14" class="admin-spinner" /><CheckCircle2 v-else :size="14" /> Tester</button>
-          <button v-if="provider.managedInDashboard" class="icon-button danger" type="button" :disabled="saving===provider.id" :aria-label="`Retirer ${provider.label}`" @click="remove(provider)"><Trash2 :size="14" /></button>
+          <button v-if="provider.managedInDashboard&&provider.id!=='github'" class="icon-button danger" type="button" :disabled="saving===provider.id" :aria-label="`Retirer ${provider.label}`" @click="remove(provider)"><Trash2 :size="14" /></button>
         </div>
       </article>
     </div>
