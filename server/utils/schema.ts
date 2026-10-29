@@ -43,6 +43,7 @@ export const projects = pgTable('portfolio_projects', {
   slug: varchar('slug', { length: 180 }).notNull(),
   description: text('description').notNull(),
   tags: text('tags').array().notNull().default(sql`ARRAY[]::text[]`),
+  categories: text('categories').array().notNull().default(sql`ARRAY[]::text[]`),
   demoUrl: text('demo_url'), repoUrl: text('repo_url'), imageUrl: text('image_url'),
   year: varchar('year', { length: 12 }),
   projectType: varchar('project_type', { length: 60 }).notNull().default('Web'),

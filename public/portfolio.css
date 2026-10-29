@@ -27,6 +27,7 @@
 .status-chip.preview-status{color:#f4c86b}.status-chip.preview-status .status-dot{background:#f4c86b;box-shadow:0 0 11px rgba(244,200,107,.7)}
 .project-visual-link{display:flex;align-items:center;justify-content:center;color:var(--cyan)}.project-visual-link:hover img{transform:scale(1.035)}
 .project-feature-body h3 a:hover{color:var(--cyan)}.project-feature-body>.tag-list{margin:10px 0}
+.project-category-tags{margin:8px 0}.project-category-tag{border-color:rgba(138,92,255,.42);background:rgba(96,54,170,.2);color:#c3a5ff}.project-detail-categories{margin:14px 0 -12px}.project-category-options{margin:4px 0 12px}.project-category-custom{display:flex;gap:8px;margin:10px 0}.project-category-custom input{flex:1;min-width:0}
 .project-external-links{display:flex;align-items:center;gap:10px}.project-external-links .text-link{display:grid;place-items:center}
 .admin-message-badge{margin-left:auto;padding:1px 6px;border:1px solid rgba(25,230,239,.45);border-radius:999px;background:rgba(25,230,239,.12);color:var(--cyan);font-size:10px}
 .admin-new-message-notice{display:flex;align-items:center;gap:10px;flex-wrap:wrap}

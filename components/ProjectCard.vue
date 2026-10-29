@@ -2,7 +2,7 @@
 import { ArrowUpRight, Code2, ExternalLink, Github } from 'lucide-vue-next';
 import ProjectTechnologyTags from '~/components/ProjectTechnologyTags.vue';
 import type { Technology } from '~/composables/usePortfolioData';
-export interface ProjectItem { id?: number; title: string; slug?: string; description: string; tags: string[]; demoUrl?: string | null; repoUrl?: string | null; imageUrl?: string | null; year?: string | null; featured?: boolean; }
+export interface ProjectItem { id?: number; title: string; slug?: string; description: string; tags: string[]; categories?: string[]; demoUrl?: string | null; repoUrl?: string | null; imageUrl?: string | null; year?: string | null; featured?: boolean; }
 defineProps<{ project: ProjectItem; technologies?: Technology[] }>();
 </script>
 <template>
@@ -13,6 +13,7 @@ defineProps<{ project: ProjectItem; technologies?: Technology[] }>();
     <div class="project-feature-body">
       <h3><NuxtLink v-if="project.slug" :to="`/projets/${project.slug}`">{{ project.title }}</NuxtLink><template v-else>{{ project.title }}</template></h3>
       <p>{{ project.description }}</p>
+      <div v-if="project.categories?.length" class="tag-list project-category-tags" aria-label="Catégories du projet"><span v-for="category in project.categories.slice(0, 3)" :key="category" class="tag project-category-tag">{{ category }}</span></div>
       <div class="tag-list"><ProjectTechnologyTags :tags="project.tags" :technologies="technologies || []" :limit="3" /></div>
       <div class="project-bottom">
         <NuxtLink v-if="project.slug" class="text-link" :to="`/projets/${project.slug}`">Étude de cas <ArrowUpRight :size="14" /></NuxtLink>

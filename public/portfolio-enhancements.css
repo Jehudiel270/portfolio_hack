@@ -3228,3 +3228,41 @@ html[data-theme='light'] .topbar .nav-mobile {
   .admin-settings-group > summary::after { position: absolute; top: 0; right: 0; }
   .floating-icon-tuners { grid-template-columns: minmax(0, 1fr); padding: 10px; }
 }
+
+@keyframes adminPageEnter {
+  from { opacity: 0; transform: translate3d(12px, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes adminBoxEnter {
+  from { opacity: 0; transform: translate3d(0, 10px, 0) scale(.992); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+html.admin-smooth-scroll { scroll-behavior: smooth; }
+html.admin-motion-disabled .route-enter-active,
+html.admin-motion-disabled .route-leave-active { transition-duration: .01ms !important; }
+.admin-page--smooth-scroll { scroll-behavior: smooth; }
+.admin-page:not(.admin-page--no-page-motion) .admin-content {
+  animation: adminPageEnter 260ms cubic-bezier(.2,.75,.25,1) both;
+}
+.admin-page:not(.admin-page--no-box-motion) :is(.stat-card,.project-folder-card,.project-list-row,.project-document-window,.admin-stats > *,.admin-gemini-draft,.admin-settings-group,.admin-empty) {
+  animation: adminBoxEnter 280ms cubic-bezier(.2,.75,.25,1) both;
+}
+.admin-page:not(.admin-page--no-box-motion) :is(.project-folder-card,.project-list-row,.project-document-window,.stat-card):nth-child(2) { animation-delay: 40ms; }
+.admin-page:not(.admin-page--no-box-motion) :is(.project-folder-card,.project-list-row,.project-document-window,.stat-card):nth-child(3) { animation-delay: 80ms; }
+.admin-page:not(.admin-page--no-box-motion) :is(.project-folder-card,.project-list-row,.project-document-window,.stat-card):nth-child(4) { animation-delay: 120ms; }
+.admin-page .admin-pagination { position: sticky; bottom: 10px; z-index: 3; background: rgba(3, 7, 17, .94); backdrop-filter: blur(12px); }
+.admin-pagination .icon-button.selected { border-color: var(--cyan); color: var(--cyan); background: rgba(25,230,239,.12); }
+.admin-page--no-page-motion .admin-content,
+.admin-page--no-page-motion .admin-content *,
+.admin-page--no-box-motion .admin-content,
+.admin-page--no-box-motion .admin-content * { animation: none !important; transition-duration: .01ms !important; }
+html.admin-motion-disabled .route-enter-from,
+html.admin-motion-disabled .route-leave-to { opacity: 1; filter: none; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-page .admin-content,
+  .admin-page :is(.stat-card,.project-folder-card,.project-list-row,.project-document-window,.admin-gemini-draft,.admin-settings-group,.admin-empty) { animation: none !important; }
+  html.admin-smooth-scroll { scroll-behavior: auto; }
+}

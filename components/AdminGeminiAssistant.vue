@@ -49,6 +49,7 @@ const fieldLabels: Record<string, string> = {
   slug: 'Identifiant URL',
   description: 'Description',
   tags: 'Technologies',
+  categories: 'Catégories',
   demoUrl: 'Lien de démonstration',
   repoUrl: 'Dépôt GitHub',
   year: 'Année',

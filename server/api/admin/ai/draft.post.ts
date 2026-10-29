@@ -100,6 +100,7 @@ export default defineEventHandler(async (event) => {
       'Ne mets une métrique que si une preuve chiffrée existe ou si une vérification technique explicite peut être traduite sans invention, par exemple nombre de pages, endpoints, fonctionnalités, modèles ou technologies. Pour chaque métrique, retourne exactement les champs du modèle : label, value, context, unit, period, source, evidenceUrl.',
       'Préférez des métriques modestes et vérifiables aux claims commerciaux. Ne transforme pas une capture, un badge, une couverture de test ou une stack technique en pourcentage, gain ou résultat utilisateur sans source explicite.',
       'Si aucune valeur métrique vérifiable n’existe, retourne metrics: [] plutôt que de créer une donnée. Pour outcomes, responsabilites et contexte, utilise les preuves du dépôt et distingue les fonctions de l’application de l’histoire commerciale.',
+      'Remplis aussi categories avec tous les badges pertinents : Front-end, Back-end, Base de données, API, E-commerce, Mobile, IA, Sécurité, DevOps, Web, Desktop, Temps réel, Open Source ou une catégorie personnalisée courte uniquement si les preuves la justifient. categories ne doit jamais remplacer technologies/tags.',
     );
   }
   const systemInstruction = systemInstructionParts.join(' ');

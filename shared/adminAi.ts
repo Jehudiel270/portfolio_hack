@@ -1,5 +1,5 @@
 export const AI_DRAFT_FIELDS = {
-  projects: ['title', 'slug', 'description', 'tags', 'demoUrl', 'repoUrl', 'year', 'projectType', 'caseRole', 'caseContext', 'responsibilities', 'outcomes', 'metrics'],
+  projects: ['title', 'slug', 'description', 'tags', 'categories', 'demoUrl', 'repoUrl', 'year', 'projectType', 'caseRole', 'caseContext', 'responsibilities', 'outcomes', 'metrics'],
   journey: ['role', 'organization', 'location', 'startDate', 'endDate', 'description'],
   educations: ['title', 'institution', 'degree', 'location', 'startDate', 'endDate', 'status', 'description'],
   certifications: ['title', 'issuer', 'issuedAt', 'expiresAt', 'skills', 'description'],

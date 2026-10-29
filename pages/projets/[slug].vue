@@ -60,6 +60,9 @@ useSeoMeta({
         <h1>{{ project.title }}</h1>
         <RichTextContent v-if="useRichDescription" as="div" class="project-detail-description rich-text-content" :content="project.description" label="Description du projet" />
         <p v-else class="project-detail-description">{{ project.description }}</p>
+        <div v-if="project.categories?.length" class="tag-list project-detail-categories" aria-label="Catégories du projet">
+          <span v-for="category in project.categories" :key="category" class="tag project-category-tag">{{ category }}</span>
+        </div>
         <div class="tag-list project-detail-tags">
           <ProjectTechnologyTags :tags="project.tags" :technologies="portfolio.technologies" :icon-size="17" />
         </div>
