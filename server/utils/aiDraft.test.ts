@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { describeDraftValidationIssues, normalizeGeneratedDraft } from './aiDraft';
+import { addVerifiedRepositoryHomepage, describeDraftValidationIssues, normalizeGeneratedDraft } from './aiDraft';
 
 test('project AI drafts normalize common text-list and nullable metric output', () => {
   const draft = normalizeGeneratedDraft('projects', {
@@ -26,4 +26,19 @@ test('project AI validation problems identify the rejected field paths', () => {
     'tags.0 : La technologie dépasse la longueur maximale.',
     'metrics.0.value : Une valeur est requise.',
   ]);
+});
+
+test('a verified GitHub homepage fills a missing demo URL but never replaces an existing one', () => {
+  const homepage = 'https://store.example/';
+  assert.deepEqual(addVerifiedRepositoryHomepage({ title: 'Store' }, '', homepage), {
+    title: 'Store',
+    demoUrl: homepage,
+  });
+  assert.deepEqual(addVerifiedRepositoryHomepage({ title: 'Store', demoUrl: 'https://other.example' }, 'https://custom.example', homepage), {
+    title: 'Store',
+    demoUrl: 'https://custom.example',
+  });
+  assert.deepEqual(addVerifiedRepositoryHomepage({ title: 'Store', demoUrl: 'https://invented.example' }, '', ''), {
+    title: 'Store',
+  });
 });

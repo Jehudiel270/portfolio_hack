@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { navigateTo, useCookie, useRoute, useRouter, useSeoMeta } from '#imports';
-import { Activity, ArrowLeft, CheckCircle2, CircleAlert, Code2, Eye, EyeOff, FileText, FolderOpen, GraduationCap, ImagePlus, LayoutDashboard, List, Loader2, LogOut, MessageSquareText, Pencil, Plus, Save, Settings2, ShieldCheck, Sparkles, Trash2, UploadCloud, X } from 'lucide-vue-next';
+import { Activity, ArrowLeft, CheckCircle2, CircleAlert, Code2, Eye, EyeOff, FileText, FolderOpen, GraduationCap, ImagePlus, LayoutDashboard, List, Loader2, LogOut, MessageSquareText, Pencil, Plus, RotateCw, Save, Settings2, ShieldCheck, Sparkles, Trash2, UploadCloud, X } from 'lucide-vue-next';
 import AdminMazeBackdrop from '~/components/AdminMazeBackdrop.vue';
 import AdminAccountsPanel from '~/components/AdminAccountsPanel.vue';
 import CinematicIntroSettingsPanel from '~/components/CinematicIntroSettingsPanel.vue';
@@ -20,6 +20,7 @@ import { parseAiUseCasesInput } from '~/composables/aiFilters';
 import { parseSkillImportJson, skillJsonExample, type SkillImportRow } from '~/composables/adminJsonImports';
 import type { AdminPermissions } from '~/shared/adminPermissions';
 import { AI_DRAFT_FIELDS, type AiDraftResource } from '~/shared/adminAi';
+import { normalizeGithubRepositoryUrl } from '~/shared/githubRepository';
 import { PROJECT_CATEGORIES } from '~/shared/projectCategories';
 useSeoMeta({ title: 'Administration — Carrel DOSSOU', robots: 'noindex, nofollow' });
 type Resource = 'projects'|'journey'|'educations'|'certifications'|'achievements'|'testimonials'|'skills'|'technologies';
@@ -158,9 +159,18 @@ async function loadAll(){
 async function logout(){await $fetch('/api/admin/logout',{method:'POST'}).catch(()=>{});loggedIn.value=false;authenticatedAdminEmail.value='';authenticatedAdminDisplayName.value='';adminDataLoaded.value=false;activeTab.value='overview'}
 function resourceForTab(tab=activeTab.value):Resource{return tab==='ai'?'technologies':tab as Resource}
 function blankRecord(resource:Resource){const common={sortOrder:lists[resource].length+1};if(resource==='projects')return{title:'',slug:'',description:'',tags:[] as string[],categories:[] as string[],demoUrl:'',repoUrl:'',imageUrl:'',year:new Date().getFullYear().toString(),projectType:'Web',metrics:[] as ProjectMetric[],caseLayout:{accentColor:'#19e6ef',layout:siteSettings.projectDisplay.defaultLayout,showRole:true,showContext:true,showResponsibilities:true,showOutcomes:true,showMetrics:true,showGallery:true},featured:true,caseRole:'',caseContext:'',responsibilities:'',outcomes:'',gallery:[],publicationStatus:'published',publishAt:'',...common};if(resource==='journey')return{role:'',organization:'',location:'',startDate:'',endDate:'',description:'',imageUrl:'',...common};if(resource==='educations')return{title:'',institution:'',degree:'',location:'',startDate:'',endDate:'',status:'completed',description:'',imageUrl:'',...common};if(resource==='certifications')return{title:'',issuer:'',issuedAt:'',expiresAt:'',credentialId:'',credentialUrl:'',skills:'',description:'',imageUrl:'',...common};if(resource==='achievements')return{title:'',description:'',date:'',icon:'Sparkles',...common};if(resource==='testimonials')return{author:'',role:'',organization:'',quote:'',permissionConfirmed:false,publicationStatus:'draft',...common};if(resource==='skills')return{name:'',icon:'',level:75,category:'Full Stack',...common};if(activeTab.value==='ai')return{name:'',icon:'',category:'IA',aiType:'tool',aiProviderId:null,aiAccessMode:'other',aiUseCases:'',aiVerifiedAt:'',description:'',officialUrl:'',...common};return{name:'',icon:'',category:'Frontend',...common}}
-function openEditor(resource:Resource|'ai',item?:any){resource=resource==='ai'?'technologies':resource;if(!hasPermission(`${resource}.${item?'update':'create'}`))return;editorError.value='';editing.value=item||null;Object.keys(editor).forEach(k=>delete editor[k]);Object.assign(editor,item?{...item,tags:Array.isArray(item.tags)?item.tags.map((tag:string)=>tag.trim()).filter(Boolean):String(item.tags||'').split(',').map((tag:string)=>tag.trim()).filter(Boolean),categories:Array.isArray(item.categories)?item.categories.map((category:string)=>category.trim()).filter(Boolean):String(item.categories||'').split(',').map((category:string)=>category.trim()).filter(Boolean),responsibilities:Array.isArray(item.responsibilities)?item.responsibilities.join('\n'):item.responsibilities,metrics:Array.isArray(item.metrics)?item.metrics.map((metric:ProjectMetric)=>({...metric})):[],caseLayout:item.caseLayout||{accentColor:'#19e6ef',layout:siteSettings.projectDisplay.defaultLayout,showRole:true,showContext:true,showResponsibilities:true,showOutcomes:true,showMetrics:true,showGallery:true},aiUseCases:Array.isArray(item.aiUseCases)?item.aiUseCases.join(', '):'',gallery:Array.isArray(item.gallery)?item.gallery.map((media:any)=>({...media})):[],publishAt:item.publishAt?new Date(item.publishAt).toISOString().slice(0,16):'',...(activeTab.value==='ai'?{aiType:item.aiType||'tool',aiProviderId:item.aiProviderId??null,aiAccessMode:item.aiAccessMode||'other',aiVerifiedAt:item.aiVerifiedAt||'',description:item.description||'',officialUrl:item.officialUrl||''}:{})}:blankRecord(resource));editorOpen.value=true;if(['technologies','skills'].includes(resource))void loadTechnologyCatalog()}
 const projectTechnologyOptions=computed(()=>[...lists.technologies].sort((a,b)=>String(a.name).localeCompare(String(b.name),'fr')));
 const projectTechnologySearch=ref('');
+type GithubRepositoryOption={id:string;fullName:string;url:string;description:string;homepage:string;isPrivate:boolean;accountName:string;updatedAt:string};
+const githubRepositories=ref<GithubRepositoryOption[]>([]);
+const githubRepositoryWarnings=ref<string[]>([]);
+const githubRepositoriesLoading=ref(false);
+const githubRepositoryError=ref('');
+const githubRepositorySearch=ref('');
+const filteredGithubRepositories=computed(()=>githubRepositories.value.filter(repository=>`${repository.fullName} ${repository.description} ${repository.accountName}`.toLocaleLowerCase('fr').includes(githubRepositorySearch.value.trim().toLocaleLowerCase('fr'))));
+const usedGithubRepositoryUrls=computed(()=>new Set(lists.projects.filter(project=>project.id!==editing.value?.id).map(project=>normalizeGithubRepositoryUrl(project.repoUrl)).filter(Boolean)));
+async function loadGithubRepositories(){githubRepositoriesLoading.value=true;githubRepositoryError.value='';try{const result=await $fetch<{repositories:GithubRepositoryOption[];warnings:string[]}>('/api/admin/ai/github-repositories');githubRepositories.value=result.repositories;githubRepositoryWarnings.value=result.warnings}catch(cause){githubRepositoryError.value=requestErrorMessage(cause,'Impossible de charger les dépôts GitHub.')}finally{githubRepositoriesLoading.value=false}}
+function openEditor(resource:Resource|'ai',item?:any){resource=resource==='ai'?'technologies':resource;if(!hasPermission(`${resource}.${item?'update':'create'}`))return;editorError.value='';editing.value=item||null;Object.keys(editor).forEach(k=>delete editor[k]);Object.assign(editor,item?{...item,tags:Array.isArray(item.tags)?item.tags.map((tag:string)=>tag.trim()).filter(Boolean):String(item.tags||'').split(',').map((tag:string)=>tag.trim()).filter(Boolean),categories:Array.isArray(item.categories)?item.categories.map((category:string)=>category.trim()).filter(Boolean):String(item.categories||'').split(',').map((category:string)=>category.trim()).filter(Boolean),responsibilities:Array.isArray(item.responsibilities)?item.responsibilities.join('\n'):item.responsibilities,metrics:Array.isArray(item.metrics)?item.metrics.map((metric:ProjectMetric)=>({...metric})):[],caseLayout:item.caseLayout||{accentColor:'#19e6ef',layout:siteSettings.projectDisplay.defaultLayout,showRole:true,showContext:true,showResponsibilities:true,showOutcomes:true,showMetrics:true,showGallery:true},aiUseCases:Array.isArray(item.aiUseCases)?item.aiUseCases.join(', '):'',gallery:Array.isArray(item.gallery)?item.gallery.map((media:any)=>({...media})):[],publishAt:item.publishAt?new Date(item.publishAt).toISOString().slice(0,16):'',...(activeTab.value==='ai'?{aiType:item.aiType||'tool',aiProviderId:item.aiProviderId??null,aiAccessMode:item.aiAccessMode||'other',aiVerifiedAt:item.aiVerifiedAt||'',description:item.description||'',officialUrl:item.officialUrl||''}:{})}:blankRecord(resource));editorOpen.value=true;if(['technologies','skills'].includes(resource))void loadTechnologyCatalog();if(resource==='projects'&&hasPermission('ai.generate'))void loadGithubRepositories()}
 const filteredProjectTechnologyOptions=computed(()=>projectTechnologyOptions.value.filter((technology)=>`${technology.name} ${technology.category}`.toLocaleLowerCase('fr').includes(projectTechnologySearch.value.trim().toLocaleLowerCase('fr'))));
 const generalFloatingIcons=[{name:'Code',icon:'text:<>'},{name:'Terminal',icon:'text:$_'},{name:'Développement',icon:'text:{ }'},{name:'Base de données',icon:'text:DB'}];
 const floatingIconOptions=computed(()=>{const options=[...generalFloatingIcons,...lists.technologies.map((technology)=>({name:technology.name,icon:technology.icon||`text:${technology.name.slice(0,2)}`}))];return options.filter((option,index)=>/^(?:text:.{1,12}|(?:logos|devicon|simple-icons):[a-z0-9-]+)$/i.test(option.icon)&&options.findIndex((candidate)=>candidate.icon===option.icon)===index)});
@@ -675,6 +685,29 @@ onBeforeUnmount(()=>{if(messagePollTimer)clearInterval(messagePollTimer);if(type
                   {{ category }} <X :size="12" aria-hidden="true" /><span class="sr-only"> — retirer cette catégorie</span>
                 </button>
               </div>
+            </div>
+            <div v-else-if="key==='repoUrl'&&activeTab==='projects'" class="field full project-github-repository-picker">
+              <label for="project-github-repository">Dépôt GitHub</label>
+              <div v-if="hasPermission('ai.generate')" class="project-github-repository-controls">
+                <input v-model="githubRepositorySearch" type="search" aria-label="Rechercher un dépôt GitHub" placeholder="Filtrer par dépôt, description ou compte…">
+                <select id="project-github-repository" v-model="editor.repoUrl" :disabled="githubRepositoriesLoading">
+                  <option value="">Choisir parmi les dépôts accessibles…</option>
+                  <option v-for="repository in filteredGithubRepositories" :key="repository.id" :value="repository.url" :disabled="usedGithubRepositoryUrls.has(normalizeGithubRepositoryUrl(repository.url))">
+                    {{ repository.fullName }} · {{ repository.accountName }}{{ repository.isPrivate?' · privé':'' }}{{ repository.homepage?' · site détecté':'' }}{{ usedGithubRepositoryUrls.has(normalizeGithubRepositoryUrl(repository.url))?' · déjà associé':'' }}
+                  </option>
+                </select>
+                <button class="button secondary" type="button" :disabled="githubRepositoriesLoading" @click="loadGithubRepositories">
+                  <Loader2 v-if="githubRepositoriesLoading" :size="14" class="admin-spinner" /><RotateCw v-else :size="14" />
+                  {{ githubRepositoriesLoading?'Chargement…':'Actualiser les dépôts' }}
+                </button>
+              </div>
+              <p v-if="githubRepositoriesLoading" class="muted" role="status">Chargement des dépôts accessibles avec les comptes GitHub configurés…</p>
+              <p v-for="warning in githubRepositoryWarnings" :key="warning" class="admin-alert" role="status">{{ warning }}</p>
+              <p v-if="githubRepositoryError" class="admin-alert error" role="alert">{{ githubRepositoryError }}</p>
+              <p v-else-if="hasPermission('ai.generate')&&!githubRepositoriesLoading&&!githubRepositories.length&&!githubRepositoryWarnings.length" class="muted" role="status">Aucun dépôt accessible n’a été trouvé.</p>
+              <p class="muted">Les jetons restent côté serveur. Tu peux aussi coller directement le lien si le dépôt ne figure pas dans la liste. Si un site est déclaré dans GitHub, il sera proposé dans le brouillon IA.</p>
+              <label for="project-repository-url">Lien du dépôt (facultatif)</label>
+              <input id="project-repository-url" v-model="editor[key]" type="url" placeholder="https://github.com/organisation/depot">
             </div>
             <div v-else-if="key==='aiType'&&activeTab==='ai'" class="field"><label>Type IA</label><select :value="editor.aiType" @change="setAiType(($event.target as HTMLSelectElement).value)"><option value="provider">Fournisseur</option><option value="model">Modèle</option><option value="assistant">Assistant / application</option><option value="tool">Outil / framework</option></select></div>
             <div v-else-if="key==='aiProviderId'&&activeTab==='ai'&&editor.aiType!=='provider'" class="field"><label>Fournisseur associé</label><select v-model="editor.aiProviderId"><option :value="null">Non renseigné</option><option v-for="provider in aiProviders" :key="provider.id" :value="provider.id">{{ provider.name }}</option></select></div>

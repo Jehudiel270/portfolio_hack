@@ -12,6 +12,8 @@ export const AI_DRAFT_FIELDS = {
 
 export type AiDraftResource = keyof typeof AI_DRAFT_FIELDS;
 
+export const PROJECT_AI_DRAFT_INSTRUCTIONS = 'Analyse le dépôt GitHub indiqué et prépare un brouillon complet pour la fiche projet. À partir du nom du dépôt, de sa description, du README, des manifests et du code source fourni, propose tous les champs que les preuves permettent de remplir : title, slug, description, tags, categories, demoUrl uniquement si une vraie URL de démo est explicitement documentée, year uniquement si une date de réalisation est prouvée, projectType, caseRole, caseContext, responsibilities, outcomes et metrics vérifiables. Utilise le nom du dépôt comme titre lisible si aucun meilleur titre n’est indiqué. Garde les technologies dans tags, choisis les catégories dans la liste fournie et limite-les à 12. N’invente aucun fait, client, lien, date, chiffre ou résultat. Laisse vide ou omets les champs impossibles à déduire; retourne metrics: [] sans métrique chiffrée vérifiable.';
+
 export const AI_TEXT_PROVIDERS = ['gemini', 'openai', 'anthropic', 'mistral', 'deepseek'] as const;
 export type AiTextProvider = typeof AI_TEXT_PROVIDERS[number];
 

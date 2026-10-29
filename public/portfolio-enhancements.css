@@ -2233,6 +2233,58 @@ html[data-theme='light'][data-public-site='true'] .public-light-veil {
   font-size: 12px;
 }
 
+.project-github-repository-picker {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.project-github-repository-picker > p {
+  margin: 0;
+  font-size: 11px;
+}
+
+.project-github-repository-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-width: 0;
+}
+
+.project-github-repository-controls > input,
+.project-github-repository-controls > select,
+.project-github-repository-picker > input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(3, 9, 21, .78);
+  color: var(--text);
+}
+
+.project-github-repository-controls > input {
+  grid-column: 1 / -1;
+}
+
+.project-github-repository-controls > .button {
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.project-github-repository-picker > label:not(:first-child) {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+html[data-theme='light'] .project-github-repository-controls > input,
+html[data-theme='light'] .project-github-repository-controls > select,
+html[data-theme='light'] .project-github-repository-picker > input {
+  background: rgba(255, 255, 255, .88);
+}
+
 .project-technology-options {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
@@ -2314,6 +2366,12 @@ html[data-theme='light'][data-public-site='true'] .public-light-veil {
 }
 
 @media (max-width: 480px) {
+  .project-github-repository-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .project-github-repository-controls > .button {
+    width: 100%;
+  }
   .project-technology-options {
     grid-template-columns: 1fr;
     max-height: 250px;

@@ -1,12 +1,12 @@
 import { createError, defineEventHandler, readBody } from 'h3';
 import { z } from 'zod';
-import { AI_DRAFT_FIELDS, AI_TEXT_PROVIDERS, type AiDraftResource, type AiTextProvider } from '~/shared/adminAi';
+import { AI_DRAFT_FIELDS, AI_TEXT_PROVIDERS, PROJECT_AI_DRAFT_INSTRUCTIONS, type AiDraftResource } from '~/shared/adminAi';
 import { PROJECT_CATEGORIES } from '~/shared/projectCategories';
 import { requireAdmin } from '~/server/utils/auth';
 import { enforceAiRequestLimit } from '~/server/utils/aiRateLimit';
 import { contentSchemas } from '~/server/utils/content';
 import { addProviderUsage, callTextProvider, callTextProviderWithGeminiFallback, getProviderCredential, listGithubCredentials, listGeminiCredentials, readGithubRepositoryEvidence, searchGithubRepositoryContext } from '~/server/utils/aiProviders';
-import { describeDraftValidationIssues, normalizeGeneratedDraft } from '~/server/utils/aiDraft';
+import { addVerifiedRepositoryHomepage, describeDraftValidationIssues, normalizeGeneratedDraft } from '~/server/utils/aiDraft';
 import { validatePublicHttpsUrl } from '~/server/utils/publicWebUrl';
 
 const profileSchema = z.object({
@@ -20,7 +20,7 @@ const requestSchema = z.object({
   resource: z.enum(Object.keys(AI_DRAFT_FIELDS) as [AiDraftResource, ...AiDraftResource[]]),
   provider: z.enum(AI_TEXT_PROVIDERS).default('gemini'),
   model: z.string().trim().regex(/^[a-zA-Z0-9._:/-]{1,120}$/u, 'Nom de modèle invalide.').optional(),
-  instructions: z.string().trim().min(4).max(1000),
+  instructions: z.string().trim().min(4).max(1000).optional(),
   current: z.record(z.string(), z.unknown()).default({}),
 });
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -33,7 +33,11 @@ export default defineEventHandler(async (event) => {
   if (!parsedRequest.success) {
     throw createError({ statusCode: 400, statusMessage: 'Demande IA invalide. Vérifie le texte et la fiche sélectionnée.' });
   }
-  const { resource, provider, model, instructions, current } = parsedRequest.data;
+  const { resource, provider, model, current } = parsedRequest.data;
+  const instructions = parsedRequest.data.instructions || (resource === 'projects' ? PROJECT_AI_DRAFT_INSTRUCTIONS : '');
+  if (!instructions) {
+    throw createError({ statusCode: 400, statusMessage: 'Ajoute une consigne pour préparer ce brouillon.' });
+  }
   const allowedFields = AI_DRAFT_FIELDS[resource];
   const extraFields = Object.keys(current).filter((key) => !(allowedFields as readonly string[]).includes(key));
   if (extraFields.length) {
@@ -56,13 +60,16 @@ export default defineEventHandler(async (event) => {
 
   let repositoryContext = '';
   let repositoryWarning = '';
+  let repositoryHomepage = '';
   let contextUrl = '';
   if (resource === 'projects') {
     const githubAccounts = await listGithubCredentials();
     const githubApiKeys = githubAccounts.map(account => account.apiKey);
     if (typeof current.repoUrl === 'string' && current.repoUrl.trim()) {
       try {
-        repositoryContext = await readGithubRepositoryEvidence(current.repoUrl, githubApiKeys);
+        const evidence = await readGithubRepositoryEvidence(current.repoUrl, githubApiKeys);
+        repositoryContext = evidence.content;
+        repositoryHomepage = evidence.homepage;
       } catch (repositoryError) {
         const statusMessage = repositoryError && typeof repositoryError === 'object' && 'statusMessage' in repositoryError
           ? (repositoryError as { statusMessage?: unknown }).statusMessage
@@ -75,7 +82,7 @@ export default defineEventHandler(async (event) => {
         typeof current.title === 'string' ? current.title.trim() : '',
         typeof current.projectType === 'string' ? current.projectType.trim() : '',
         Array.isArray(current.tags) ? current.tags.filter((tag): tag is string => typeof tag === 'string').slice(0, 8).join(' ') : '',
-        parsedRequest.data.instructions,
+        instructions,
       ].filter(Boolean);
       repositoryContext = await searchGithubRepositoryContext(searchParts.join(' '), githubApiKeys);
     }
@@ -175,6 +182,18 @@ export default defineEventHandler(async (event) => {
         ? { repositoryEvidence: { included: Boolean(repositoryContext), warning: repositoryWarning || undefined } }
         : undefined,
     });
+  }
+
+  if (resource === 'projects') {
+    let verifiedHomepage = '';
+    if (!(typeof current.demoUrl === 'string' && current.demoUrl.trim()) && repositoryHomepage) {
+      try {
+        verifiedHomepage = await validatePublicHttpsUrl(repositoryHomepage);
+      } catch {
+        repositoryWarning = 'Le dépôt déclare un lien de site qui ne peut pas être validé comme URL publique HTTPS; il n’a pas été ajouté.';
+      }
+    }
+    validatedDraft = addVerifiedRepositoryHomepage(validatedDraft, current.demoUrl, verifiedHomepage);
   }
 
   const repositoryEvidence = resource === 'projects' && (typeof current.repoUrl === 'string' && current.repoUrl.trim() || repositoryContext)

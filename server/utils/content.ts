@@ -1,8 +1,9 @@
 import { createError } from 'h3';
 import { z } from 'zod';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, isNotNull, sql } from 'drizzle-orm';
 import { getDatabase } from './database';
 import { achievements, activityLog, certifications, educations, journey, projects, skills, technologies, testimonials } from './schema';
+import { hasDuplicateGithubRepository, normalizeGithubRepositoryUrl } from '../../shared/githubRepository';
 import { isRichTextEmpty, looksLikeHtml, richTextLength, sanitizeHtml } from '#shared/rich-text';
 
 export const resourceTables = { projects, journey, educations, certifications, achievements, testimonials, skills, technologies } as const;
@@ -79,6 +80,21 @@ async function recordActivity(action: string, resource: ResourceName, id: number
     before: before as object | null, after: action === 'delete' ? null : record,
   });
 }
+
+function assertUniqueProjectRepository(
+  repositoryUrl: string | null | undefined,
+  existingProjects: Array<{ id: number; repoUrl: string | null }>,
+  excludedId?: number,
+) {
+  if (hasDuplicateGithubRepository(repositoryUrl, existingProjects, excludedId)) {
+    throw createError({
+      statusCode: 409,
+      statusMessage: 'Ce dépôt GitHub est déjà associé à un projet.',
+      message: 'Modifie la fiche projet existante au lieu de créer un second projet pour le même dépôt.',
+    });
+  }
+}
+
 export async function createResource(name: ResourceName, body: unknown) {
   const parsed = contentSchemas[name].safeParse(body);
   if (!parsed.success) {
@@ -86,13 +102,30 @@ export async function createResource(name: ResourceName, body: unknown) {
     throw createError({ statusCode: 400, statusMessage: 'Contenu invalide.', message: fields.length ? `Vérifie les champs : ${fields.join(', ')}.` : 'Les données du contenu sont invalides.' });
   }
   const value = parsed.data; const table:any = resourceTables[name];
-  if (name === 'projects') sanitizeProjectRichText(value);
+  if (name === 'projects') {
+    sanitizeProjectRichText(value);
+    const projectValue = value as { repoUrl?: string | null };
+    if (typeof projectValue.repoUrl === 'string' && projectValue.repoUrl.trim()) {
+      projectValue.repoUrl = normalizeGithubRepositoryUrl(projectValue.repoUrl);
+    }
+  }
   if (name === 'technologies') await validateTechnologyAiMetadata(value as TechnologyAiMetadata);
   const testimonialValue = value as { publicationStatus?: string; permissionConfirmed?: boolean };
   if (name === 'testimonials' && testimonialValue.publicationStatus === 'published' && !testimonialValue.permissionConfirmed) {
     throw createError({ statusCode: 400, statusMessage: 'Autorisation requise.', message: 'Confirme l’autorisation de publication avant de publier ce témoignage.' });
   }
-  const [row] = await getDatabase().insert(table).values(value as any).returning();
+  const db = getDatabase();
+  const [row] = name === 'projects'
+    ? await db.transaction(async (tx) => {
+        const repositoryUrl = (value as { repoUrl?: string | null }).repoUrl;
+        if (typeof repositoryUrl === 'string' && repositoryUrl.trim()) {
+          await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${normalizeGithubRepositoryUrl(repositoryUrl)}))`);
+          const existingProjects = await tx.select({ id: projects.id, repoUrl: projects.repoUrl }).from(projects).where(isNotNull(projects.repoUrl));
+          assertUniqueProjectRepository(repositoryUrl, existingProjects);
+        }
+        return tx.insert(table).values(value as any).returning();
+      })
+    : await db.insert(table).values(value as any).returning();
   await recordActivity('create', name, row.id, row);
   return row;
 }
@@ -103,7 +136,13 @@ export async function updateResource(name: ResourceName, id: number, body: unkno
     throw createError({ statusCode: 400, statusMessage: 'Contenu invalide.', message: fields.length ? `Vérifie les champs : ${fields.join(', ')}.` : 'Les données du contenu sont invalides.' });
   }
   const value = parsed.data; if (!Object.keys(value).length) throw createError({ statusCode:400,statusMessage:'Aucune donnée à modifier.' });
-  if (name === 'projects') sanitizeProjectRichText(value);
+  if (name === 'projects') {
+    sanitizeProjectRichText(value);
+    const projectValue = value as { repoUrl?: string | null };
+    if (typeof projectValue.repoUrl === 'string' && projectValue.repoUrl.trim()) {
+      projectValue.repoUrl = normalizeGithubRepositoryUrl(projectValue.repoUrl);
+    }
+  }
   const table:any=resourceTables[name]; const db=getDatabase();
   const [current] = await db.select().from(table).where(eq(table.id,id)).limit(1);
   if (!current) throw createError({statusCode:404,statusMessage:'Élément introuvable.'});
@@ -122,7 +161,19 @@ export async function updateResource(name: ResourceName, id: number, body: unkno
       throw createError({ statusCode: 400, statusMessage: 'Autorisation requise.', message: 'Confirme l’autorisation de publication avant de publier ce témoignage.' });
     }
   }
-  const [row]=await db.update(table).set(value as any).where(eq(table.id,id)).returning();
+  const [row] = name === 'projects'
+    ? await db.transaction(async (tx) => {
+        const changedRepositoryUrl = (value as { repoUrl?: string | null }).repoUrl;
+        const currentRepositoryUrl = changedRepositoryUrl === undefined ? currentSnapshot.repoUrl : changedRepositoryUrl;
+        if (typeof currentRepositoryUrl === 'string' && currentRepositoryUrl.trim()) {
+          const normalizedUrl = normalizeGithubRepositoryUrl(currentRepositoryUrl);
+          await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${normalizedUrl}))`);
+          const existingProjects = await tx.select({ id: projects.id, repoUrl: projects.repoUrl }).from(projects).where(isNotNull(projects.repoUrl));
+          assertUniqueProjectRepository(currentRepositoryUrl, existingProjects, id);
+        }
+        return tx.update(table).set(value as any).where(eq(table.id,id)).returning();
+      })
+    : await db.update(table).set(value as any).where(eq(table.id,id)).returning();
   if (!row) throw createError({statusCode:404,statusMessage:'Élément introuvable.'});
   await recordActivity('update', name, row.id, row, currentSnapshot);
   return row;

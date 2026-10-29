@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { Check, Clock3, LoaderCircle, Sparkles, Undo2 } from 'lucide-vue-next';
-import { AI_DRAFT_FIELDS, AI_TEXT_PROVIDERS, type AiDraftResource, type AiProvider, type AiTextProvider } from '~/shared/adminAi';
+import { AI_DRAFT_FIELDS, AI_TEXT_PROVIDERS, PROJECT_AI_DRAFT_INSTRUCTIONS, type AiDraftResource, type AiProvider, type AiTextProvider } from '~/shared/adminAi';
 
 const props = defineProps<{
   resource: AiDraftResource;
@@ -29,8 +29,6 @@ const selectedModelOptions = computed(() => selectedProviderOption.value?.availa
 const selectedModelDescription = computed(() => selectedModelOptions.value.find(model => model.id === selectedModel.value)?.description || 'Modèle utilisé uniquement pour cette génération.');
 const isProjectDraft = computed(() => props.resource === 'projects');
 const repositoryUrl = computed(() => typeof props.current.repoUrl === 'string' ? props.current.repoUrl.trim() : '');
-const projectDraftInstructions = 'Analyse le dépôt GitHub indiqué et prépare un brouillon complet pour la fiche projet. À partir du nom du dépôt, de sa description, du README, des manifests et du code source fourni, propose tous les champs que les preuves permettent de remplir : title, slug, description, tags, categories, demoUrl uniquement si une vraie URL de démo est explicitement documentée, year uniquement si une date de réalisation est prouvée, projectType, caseRole, caseContext, responsibilities, outcomes et metrics vérifiables. Utilise le nom du dépôt comme titre lisible si aucun meilleur titre n’est indiqué. Garde les technologies dans tags, choisis les catégories dans la liste fournie et limite-les à 12. N’invente aucun fait, client, lien, date, chiffre ou résultat. Laisse vide ou omets les champs impossibles à déduire; retourne metrics: [] sans métrique chiffrée vérifiable.';
-
 function selectProvider(provider: AiTextProvider) {
   selectedProvider.value = provider;
   const option = providers.value.find(item => item.id === provider);
@@ -114,7 +112,7 @@ async function generateDraft() {
     error.value = 'Renseigne le lien du dépôt GitHub dans la fiche projet avant de générer le brouillon.';
     return;
   }
-  const requestInstructions = isProjectDraft.value ? projectDraftInstructions : instructions.value.trim();
+  const requestInstructions = isProjectDraft.value ? PROJECT_AI_DRAFT_INSTRUCTIONS : instructions.value.trim();
   if (requestInstructions.length < 4) {
     error.value = 'Décris en quelques mots ce que tu veux préparer.';
     return;

@@ -35,3 +35,18 @@ export function describeDraftValidationIssues(issues: Array<{ path: PropertyKey[
     return `${path} : ${issue.message}`;
   });
 }
+
+export function addVerifiedRepositoryHomepage(
+  draft: Record<string, unknown>,
+  currentDemoUrl: unknown,
+  verifiedHomepage: string,
+) {
+  if (typeof currentDemoUrl === 'string' && currentDemoUrl.trim()) {
+    draft.demoUrl = currentDemoUrl;
+  } else if (verifiedHomepage) {
+    draft.demoUrl = verifiedHomepage;
+  } else {
+    delete draft.demoUrl;
+  }
+  return draft;
+}

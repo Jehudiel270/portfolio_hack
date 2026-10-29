@@ -8,6 +8,7 @@ import { aiProviderCredentials, aiProviderUsage } from '~/server/utils/schema';
 import { buildScreenshotRequest, MAX_SITE_CAPTURE_BYTES, type SiteCaptureMode } from '~/server/utils/siteCapture';
 import { createGithubAccount, decodeGithubAccounts, encodeGithubAccounts, MAX_GITHUB_ACCOUNTS, shouldTryNextGithubCredential } from '~/server/utils/githubAccounts';
 import { redactRepositorySecrets, selectGithubSourceFiles, type GithubTreeEntry } from '~/server/utils/githubRepositoryEvidence';
+import { normalizeGithubRepositoryList, type GithubRepositoryOption } from '~/server/utils/githubRepositories';
 
 const providerNames = Object.keys(AI_PROVIDER_DETAILS) as AiProvider[];
 
@@ -74,6 +75,60 @@ export async function listGithubCredentials() {
     .where(eq(aiProviderCredentials.provider, 'github'))
     .limit(1);
   return credential ? decodeGithubAccounts(decryptProviderKey(credential.encryptedKey)) : [];
+}
+
+export async function listGithubRepositories(accounts: Awaited<ReturnType<typeof listGithubCredentials>>) {
+  const repositoryResults = await Promise.all(accounts.map(async account => {
+    const repositories: GithubRepositoryOption[] = [];
+    try {
+      for (let page = 1; page <= 10; page++) {
+        const response = await providerFetch(
+          `${apiBase('github')}/user/repos?affiliation=owner,collaborator,organization_member&sort=updated&per_page=100&page=${page}`,
+          { headers: { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', authorization: ['Bear', 'er'].join('') + ' ' + account.apiKey } },
+          12_000,
+          'GitHub',
+        );
+        if (!response.ok) {
+          const reason = response.status === 401 || response.status === 403
+            ? 'GitHub a refusé le jeton ou son accès aux dépôts.'
+            : `GitHub a répondu avec HTTP ${response.status}.`;
+          return { repositories, warning: `${account.name} : ${reason}` };
+        }
+        const declaredLength = Number(response.headers.get('content-length') || 0);
+        if (declaredLength > 2_000_000) {
+          return { repositories, warning: `${account.name} : une page de dépôts dépasse la taille autorisée.` };
+        }
+        const body = await response.text();
+        if (body.length > 2_000_000) {
+          return { repositories, warning: `${account.name} : une page de dépôts dépasse la taille autorisée.` };
+        }
+        const pageRepositories = normalizeGithubRepositoryList(JSON.parse(body) as unknown, account);
+        repositories.push(...pageRepositories);
+        if (pageRepositories.length < 100) return { repositories };
+      }
+      return { repositories, warning: `${account.name} : seuls les 1 000 dépôts les plus récents ont été chargés.` };
+    } catch (error) {
+      const message = error && typeof error === 'object' && 'statusMessage' in error
+        ? (error as { statusMessage?: unknown }).statusMessage
+        : null;
+      return {
+        repositories,
+        warning: `${account.name} : ${typeof message === 'string' ? message : 'impossible de charger les dépôts GitHub.'}`,
+      };
+    }
+  }));
+  const repositoriesByUrl = new Map<string, GithubRepositoryOption>();
+  for (const result of repositoryResults) {
+    for (const repository of result.repositories) {
+      const key = repository.url.toLowerCase();
+      if (!repositoriesByUrl.has(key)) repositoriesByUrl.set(key, repository);
+    }
+  }
+  const warnings = repositoryResults.flatMap(result => result.warning ? [result.warning] : []);
+  if (accounts.length && !repositoriesByUrl.size && warnings.length) {
+    throw createError({ statusCode: 502, statusMessage: warnings.join(' ') });
+  }
+  return { repositories: [...repositoriesByUrl.values()], warnings };
 }
 
 export async function addGithubCredential(name: string, apiKey: string) {
@@ -618,5 +673,8 @@ export async function readGithubRepositoryEvidence(repoUrl: string, apiKeys: str
   }
   if (readme) parts.unshift(`README:\n${redactRepositorySecrets(readme)}`);
   if (tree?.truncated === true) parts.push('Arborescence partielle : GitHub a tronqué la liste des fichiers du dépôt.');
-  return parts.join('\n\n---\n\n').slice(0, 45_000);
+  return {
+    content: parts.join('\n\n---\n\n').slice(0, 45_000),
+    homepage: typeof metadata?.homepage === 'string' ? metadata.homepage.trim() : '',
+  };
 }
