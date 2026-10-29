@@ -426,6 +426,41 @@ export async function generateOpenAiImage(apiKey: string, prompt: string) {
   return `data:image/png;base64,${encoded}`;
 }
 
+export async function searchGithubRepositoryContext(query: string, apiKeys: string[] = []) {
+  const credentials = [...new Set(apiKeys.filter(Boolean))];
+  if (!credentials.length || !query.trim()) return '';
+  const seen = new Set<string>();
+  const repositories: Array<{ fullName: string; description: string; url: string }> = [];
+  for (const apiKey of credentials) {
+    const headers: Record<string, string> = { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', authorization: `Bearer ${apiKey}` };
+    const searchUrl = `${apiBase('github')}/search/repositories?q=${encodeURIComponent(`${query.trim()} in:name,description,readme`)}&per_page=5`;
+    try {
+      const response = await providerFetch(searchUrl, { headers }, 12_000, 'GitHub');
+      if (!response.ok) continue;
+      const payload = await providerJson<{ items?: Array<{ full_name?: unknown; description?: unknown; html_url?: unknown }> }>(response, 'GitHub');
+      for (const item of payload.items || []) {
+        if (typeof item.full_name !== 'string' || seen.has(item.full_name)) continue;
+        seen.add(item.full_name);
+        repositories.push({ fullName: item.full_name, description: typeof item.description === 'string' ? item.description : '', url: typeof item.html_url === 'string' ? item.html_url : '' });
+      }
+    } catch {
+      continue;
+    }
+    if (repositories.length >= 8) break;
+  }
+  const parts: string[] = [];
+  for (const repository of repositories.slice(0, 8)) {
+    try {
+      const readme = await readGithubReadme(repository.url, credentials);
+      parts.push(`Dépôt: ${repository.fullName}\nDescription GitHub: ${repository.description}\nURL: ${repository.url}\nREADME:\n${readme}`);
+      await new Promise(resolve => setTimeout(resolve, 50));
+    } catch {
+      parts.push(`Dépôt: ${repository.fullName}\nDescription GitHub: ${repository.description}\nURL: ${repository.url}`);
+    }
+  }
+  return parts.join('\n\n---\n\n').slice(0, 30_000);
+}
+
 export async function readGithubReadme(repoUrl: string, apiKeys: string[] = []) {
   let url: URL;
   try {

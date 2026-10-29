@@ -203,7 +203,7 @@ const allowedFields = AI_DRAFT_FIELDS[props.resource] as readonly string[];
     <label class="admin-gemini-prompt">Que veux-tu améliorer ou compléter ?
       <textarea v-model="instructions" rows="3" maxlength="1000" placeholder="Ex. Reformule la description pour mettre l’accent sur les objectifs et le travail réellement réalisé."></textarea>
     </label>
-    <label class="admin-gemini-consent"><input v-model="consent" type="checkbox"><span>J’accepte d’envoyer ma demande et les champs affichés au fournisseur choisi. Le README GitHub du projet sera lu et transmis au modèle. Seul Gemini peut aussi consulter l’URL de démo fournie.</span></label>
+    <label class="admin-gemini-consent"><input v-model="consent" type="checkbox"><span>J’accepte d’envoyer ma demande et les champs affichés au fournisseur choisi. Pour un projet, son dépôt explicitement saisi ou les dépôts trouvés avec tous les comptes GitHub configurés peuvent être transmis comme contexte. Seul Gemini peut aussi consulter l’URL de démo.</span></label>
     <p class="admin-gemini-privacy">Le modèle ne peut modifier que les champs listés pour cette fiche. Tu peux relire, annuler ou modifier le résultat avant d’enregistrer. L’historique reste dans cette édition; aucun brouillon n’est sauvegardé automatiquement.</p>
     <p v-if="error" class="admin-alert error" role="alert">{{ error }}</p>
     <button class="button secondary" type="button" :disabled="busy||!consent||!selectedProviderConfigured||instructions.trim().length<4" @click="generateDraft">

@@ -4,7 +4,7 @@ import { AI_DRAFT_FIELDS, AI_TEXT_PROVIDERS, type AiDraftResource, type AiTextPr
 import { requireAdmin } from '~/server/utils/auth';
 import { enforceAiRequestLimit } from '~/server/utils/aiRateLimit';
 import { contentSchemas } from '~/server/utils/content';
-import { addProviderUsage, callTextProvider, callTextProviderWithGeminiFallback, getProviderCredential, listGithubCredentials, listGeminiCredentials, readGithubReadme } from '~/server/utils/aiProviders';
+import { addProviderUsage, callTextProvider, callTextProviderWithGeminiFallback, getProviderCredential, listGithubCredentials, listGeminiCredentials, readGithubReadme, searchGithubRepositoryContext } from '~/server/utils/aiProviders';
 import { validatePublicHttpsUrl } from '~/server/utils/publicWebUrl';
 
 const profileSchema = z.object({
@@ -54,9 +54,20 @@ export default defineEventHandler(async (event) => {
 
   let repositoryContext = '';
   let contextUrl = '';
-  if (resource === 'projects' && typeof current.repoUrl === 'string' && current.repoUrl.trim()) {
+  if (resource === 'projects') {
     const githubAccounts = await listGithubCredentials();
-    repositoryContext = await readGithubReadme(current.repoUrl, githubAccounts.map(account => account.apiKey));
+    const githubApiKeys = githubAccounts.map(account => account.apiKey);
+    if (typeof current.repoUrl === 'string' && current.repoUrl.trim()) {
+      repositoryContext = await readGithubReadme(current.repoUrl, githubApiKeys);
+    } else if (githubApiKeys.length) {
+      const searchParts = [
+        typeof current.title === 'string' ? current.title.trim() : '',
+        typeof current.projectType === 'string' ? current.projectType.trim() : '',
+        Array.isArray(current.tags) ? current.tags.filter((tag): tag is string => typeof tag === 'string').slice(0, 8).join(' ') : '',
+        parsedRequest.data.instructions,
+      ].filter(Boolean);
+      repositoryContext = await searchGithubRepositoryContext(searchParts.join(' '), githubApiKeys);
+    }
     if (githubAccounts.length) await addProviderUsage('github');
   }
   if (resource === 'projects' && typeof current.demoUrl === 'string' && current.demoUrl.trim()) {
