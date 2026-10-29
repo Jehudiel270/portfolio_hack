@@ -6,6 +6,7 @@ import { requireAdmin } from '~/server/utils/auth';
 import { enforceAiRequestLimit } from '~/server/utils/aiRateLimit';
 import { contentSchemas } from '~/server/utils/content';
 import { addProviderUsage, callTextProvider, callTextProviderWithGeminiFallback, getProviderCredential, listGithubCredentials, listGeminiCredentials, readGithubRepositoryEvidence, searchGithubRepositoryContext } from '~/server/utils/aiProviders';
+import { describeDraftValidationIssues, normalizeGeneratedDraft } from '~/server/utils/aiDraft';
 import { validatePublicHttpsUrl } from '~/server/utils/publicWebUrl';
 
 const profileSchema = z.object({
@@ -54,6 +55,7 @@ export default defineEventHandler(async (event) => {
   enforceAiRequestLimit(admin.id, 'draft', 20);
 
   let repositoryContext = '';
+  let repositoryWarning = '';
   let contextUrl = '';
   if (resource === 'projects') {
     const githubAccounts = await listGithubCredentials();
@@ -62,14 +64,12 @@ export default defineEventHandler(async (event) => {
       try {
         repositoryContext = await readGithubRepositoryEvidence(current.repoUrl, githubApiKeys);
       } catch (repositoryError) {
-        const statusCode = repositoryError && typeof repositoryError === 'object' && 'statusCode' in repositoryError
-          ? Number((repositoryError as { statusCode?: unknown }).statusCode)
-          : 0;
-        if (statusCode !== 404 && statusCode !== 429 && statusCode !== 401) {
-          console.warn('[AI draft] Unable to read repository README; continuing with form data.', repositoryError);
-        }
-        repositoryContext = '';
+        const statusMessage = repositoryError && typeof repositoryError === 'object' && 'statusMessage' in repositoryError
+          ? (repositoryError as { statusMessage?: unknown }).statusMessage
+          : null;
+        repositoryWarning = typeof statusMessage === 'string' ? statusMessage : 'Le dépôt n’a pas pu être lu.';
       }
+      if (!repositoryContext && !repositoryWarning) repositoryWarning = 'Aucune preuve exploitable n’a été trouvée dans ce dépôt.';
     } else if (githubApiKeys.length) {
       const searchParts = [
         typeof current.title === 'string' ? current.title.trim() : '',
@@ -98,7 +98,8 @@ export default defineEventHandler(async (event) => {
     systemInstructionParts.push(
       'Pour les projets, analyse le lien GitHub, le README, les technologies, les scripts, l’architecture et les fonctionnalités visibles dans les preuves fournies.',
       'Retourne toujours les champs que tu peux étayer : caseRole (rôle réel ou rôle à partir du contexte), caseContext (contexte utile en 1 à 4 phrases), responsibilities (liste de responsabilités techniques concrètes), outcomes (résultats observables et vérifiables) et metrics.',
-      'Ne mets une métrique que si une preuve chiffrée existe ou si une vérification technique explicite peut être traduite sans invention, par exemple nombre de pages, endpoints, fonctionnalités, modèles ou technologies. Pour chaque métrique, retourne exactement les champs du modèle : label, value, context, unit, period, source, evidenceUrl.',
+      'Respecte exactement les types du formulaire : tags, categories et responsibilities sont des tableaux de chaînes; metrics est un tableau d’objets avec label et value obligatoires, et context, unit, period, source et evidenceUrl facultatifs. Omet les valeurs facultatives inconnues au lieu de retourner null. Une URL facultative doit être une URL complète valide.',
+      'Ne mets une métrique que si une preuve chiffrée existe ou si une vérification technique explicite peut être traduite sans invention, par exemple nombre de pages, endpoints, fonctionnalités, modèles ou technologies. Pour chaque métrique, retourne uniquement les champs du modèle : label, value, context, unit, period, source, evidenceUrl.',
       'Préférez des métriques modestes et vérifiables aux claims commerciaux. Ne transforme pas une capture, un badge, une couverture de test ou une stack technique en pourcentage, gain ou résultat utilisateur sans source explicite.',
       'Si aucune valeur métrique vérifiable n’existe, retourne metrics: [] plutôt que de créer une donnée. Pour outcomes, responsabilites et contexte, utilise les preuves du dépôt et distingue les fonctions de l’application de l’histoire commerciale.',
       `Remplis aussi categories avec les catégories pertinentes parmi : ${PROJECT_CATEGORIES.join(', ')}. Sélectionne au maximum 12 catégories réellement justifiées par les preuves; une catégorie personnalisée courte est permise uniquement si aucune catégorie de la liste ne convient. categories ne doit jamais remplacer technologies/tags.`,
@@ -112,32 +113,82 @@ export default defineEventHandler(async (event) => {
     ...(repositoryContext ? { evidenceRepositoryGitHub: repositoryContext } : {}),
   });
 
-  const result = provider === 'gemini'
-    ? await callTextProviderWithGeminiFallback(
-        ((await listGeminiCredentials()).map(account => account.apiKey).length ? (await listGeminiCredentials()).map(account => account.apiKey) : [credential.apiKey]),
-        model || credential.model,
-        systemInstruction,
-        prompt,
-        contextUrl,
-      )
-    : await callTextProvider(provider, credential.apiKey, model || credential.model, systemInstruction, prompt);
+  const resolvedModel = model || credential.model;
+  const geminiAccounts = provider === 'gemini' ? await listGeminiCredentials() : [];
+  const geminiKeys = geminiAccounts.length ? geminiAccounts.map(account => account.apiKey) : [credential.apiKey];
+  const generate = (userPrompt: string) => provider === 'gemini'
+    ? callTextProviderWithGeminiFallback(geminiKeys, resolvedModel, systemInstruction, userPrompt, contextUrl)
+    : callTextProvider(provider, credential.apiKey, resolvedModel, systemInstruction, userPrompt);
+  let result = await generate(prompt);
   await addProviderUsage(provider, result.input, result.output);
-  let generatedDraft: unknown;
-  try {
-    generatedDraft = JSON.parse(result.text);
-  } catch {
-    throw createError({ statusCode: 502, statusMessage: 'Le fournisseur IA a renvoyé un JSON invalide. Réessaie avec une demande plus précise.' });
+
+  function parseGeneratedDraft(text: string): unknown {
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw createError({ statusCode: 502, statusMessage: 'Le fournisseur IA a renvoyé un JSON invalide. Réessaie avec une demande plus précise.' });
+    }
   }
-  if (!isRecord(generatedDraft)) {
-    throw createError({ statusCode: 502, statusMessage: 'Le fournisseur IA a renvoyé un format de brouillon invalide.' });
+
+  let generatedDraft = parseGeneratedDraft(result.text);
+  let normalizedDraft = normalizeGeneratedDraft(resource, generatedDraft);
+  let validationProblems: string[] = [];
+  let validatedDraft: Record<string, unknown> | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (!isRecord(normalizedDraft)) {
+      validationProblems = ['réponse : un objet JSON est requis'];
+    } else {
+      const invalidFields = Object.keys(normalizedDraft).filter((key) => !(allowedFields as readonly string[]).includes(key));
+      if (invalidFields.length) {
+        validationProblems = [`champs non autorisés : ${invalidFields.join(', ')}`];
+      } else {
+        const parsedDraft = validationSchema.partial().safeParse(normalizedDraft);
+        if (!parsedDraft.success) {
+          validationProblems = describeDraftValidationIssues(parsedDraft.error.issues);
+        } else if (!Object.keys(parsedDraft.data).length) {
+          validationProblems = ['réponse : au moins un champ modifiable doit être fourni'];
+        } else {
+          validatedDraft = parsedDraft.data;
+          break;
+        }
+      }
+    }
+    if (attempt === 1) break;
+
+    result = await generate(JSON.stringify({
+      action: 'Corrige uniquement le format du brouillon ci-dessous. Conserve les mêmes faits, ne rajoute aucune information et retourne un objet JSON valide sans texte autour.',
+      demandeInitiale: instructions,
+      erreursDeFormat: validationProblems,
+      brouillon: normalizedDraft,
+      regles: 'N’utilise que les champs autorisés. Les listes doivent être des tableaux de chaînes. Chaque métrique doit avoir label et value; omets les champs optionnels inconnus au lieu de leur donner null.',
+    }));
+    await addProviderUsage(provider, result.input, result.output);
+    generatedDraft = parseGeneratedDraft(result.text);
+    normalizedDraft = normalizeGeneratedDraft(resource, generatedDraft);
   }
-  const invalidFields = Object.keys(generatedDraft).filter((key) => !(allowedFields as readonly string[]).includes(key));
-  if (invalidFields.length) {
-    throw createError({ statusCode: 502, statusMessage: 'Le fournisseur IA a renvoyé des champs qui ne peuvent pas être modifiés.' });
+  if (!validatedDraft) {
+    const repositoryNote = repositoryWarning ? ` Contexte du dépôt : ${repositoryWarning}` : '';
+    throw createError({
+      statusCode: 502,
+      statusMessage: `Le fournisseur IA n’a pas respecté le format attendu après une correction. ${validationProblems.join(' ; ')}.${repositoryNote}`,
+      data: typeof current.repoUrl === 'string' && current.repoUrl.trim()
+        ? { repositoryEvidence: { included: Boolean(repositoryContext), warning: repositoryWarning || undefined } }
+        : undefined,
+    });
   }
-  const draftValidation = validationSchema.partial().safeParse(generatedDraft);
-  if (!draftValidation.success || !Object.keys(draftValidation.data).length) {
-    throw createError({ statusCode: 502, statusMessage: 'Le fournisseur IA a proposé des valeurs incompatibles avec la fiche. Réessaie avec une demande plus précise.' });
-  }
-  return { resource, provider, model: model || credential.model, draft: draftValidation.data };
+
+  const repositoryEvidence = resource === 'projects' && (typeof current.repoUrl === 'string' && current.repoUrl.trim() || repositoryContext)
+    ? {
+        included: Boolean(repositoryContext),
+        source: typeof current.repoUrl === 'string' && current.repoUrl.trim() ? 'linked-repository' : 'repository-search',
+        warning: repositoryWarning || undefined,
+      }
+    : undefined;
+  return {
+    resource,
+    provider,
+    model: resolvedModel,
+    draft: validatedDraft,
+    ...(repositoryEvidence ? { repositoryEvidence } : {}),
+  };
 });

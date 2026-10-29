@@ -17,6 +17,7 @@ const instructions = ref('');
 const consent = ref(false);
 const busy = ref(false);
 const error = ref('');
+const repositoryNotice = ref<{ included: boolean; warning?: string } | null>(null);
 const draft = ref<Record<string, unknown> | null>(null);
 const modelUsed = ref('');
 const providers = ref<TextProviderOption[]>([]);
@@ -26,6 +27,9 @@ const selectedProviderConfigured = computed(() => providers.value.some(provider 
 const selectedProviderOption = computed(() => providers.value.find(provider => provider.id === selectedProvider.value));
 const selectedModelOptions = computed(() => selectedProviderOption.value?.availableModels?.length ? selectedProviderOption.value.availableModels : [{ id: selectedProviderOption.value?.model || '', label: selectedProviderOption.value?.model || 'Modèle par défaut', description: 'Modèle actuellement configuré comme valeur par défaut.' }]);
 const selectedModelDescription = computed(() => selectedModelOptions.value.find(model => model.id === selectedModel.value)?.description || 'Modèle utilisé uniquement pour cette génération.');
+const isProjectDraft = computed(() => props.resource === 'projects');
+const repositoryUrl = computed(() => typeof props.current.repoUrl === 'string' ? props.current.repoUrl.trim() : '');
+const projectDraftInstructions = 'Analyse le dépôt GitHub indiqué et prépare un brouillon complet pour la fiche projet. À partir du nom du dépôt, de sa description, du README, des manifests et du code source fourni, propose tous les champs que les preuves permettent de remplir : title, slug, description, tags, categories, demoUrl uniquement si une vraie URL de démo est explicitement documentée, year uniquement si une date de réalisation est prouvée, projectType, caseRole, caseContext, responsibilities, outcomes et metrics vérifiables. Utilise le nom du dépôt comme titre lisible si aucun meilleur titre n’est indiqué. Garde les technologies dans tags, choisis les catégories dans la liste fournie et limite-les à 12. N’invente aucun fait, client, lien, date, chiffre ou résultat. Laisse vide ou omets les champs impossibles à déduire; retourne metrics: [] sans métrique chiffrée vérifiable.';
 
 function selectProvider(provider: AiTextProvider) {
   selectedProvider.value = provider;
@@ -100,12 +104,18 @@ onMounted(async () => {
 
 async function generateDraft() {
   error.value = '';
+  repositoryNotice.value = null;
   draft.value = null;
   if (!consent.value) {
     error.value = 'Confirme l’envoi des champs sélectionnés au fournisseur choisi avant de continuer.';
     return;
   }
-  if (instructions.value.trim().length < 4) {
+  if (isProjectDraft.value && !repositoryUrl.value) {
+    error.value = 'Renseigne le lien du dépôt GitHub dans la fiche projet avant de générer le brouillon.';
+    return;
+  }
+  const requestInstructions = isProjectDraft.value ? projectDraftInstructions : instructions.value.trim();
+  if (requestInstructions.length < 4) {
     error.value = 'Décris en quelques mots ce que tu veux préparer.';
     return;
   }
@@ -116,27 +126,37 @@ async function generateDraft() {
     const current = Object.fromEntries(Object.entries(props.current).filter(([, value]) =>
       value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0),
     ));
-    const response = await $fetch<{ draft: Record<string, unknown>; model: string; provider: string }>('/api/admin/ai/draft', {
+    const response = await $fetch<{
+      draft: Record<string, unknown>;
+      model: string;
+      provider: string;
+      repositoryEvidence?: { included: boolean; warning?: string };
+    }>('/api/admin/ai/draft', {
       method: 'POST',
-      body: { resource: props.resource, provider: selectedProvider.value, model: selectedModel.value || undefined, instructions: instructions.value.trim(), current },
+      body: { resource: props.resource, provider: selectedProvider.value, model: selectedModel.value || undefined, instructions: requestInstructions, current },
       headers: { 'x-admin-csrf': csrf },
     });
     draft.value = response.draft;
+    repositoryNotice.value = response.repositoryEvidence || null;
     modelUsed.value = `${providers.value.find((provider) => provider.id === response.provider)?.label || response.provider} · ${response.model}`;
     const historyId = nextHistoryId++;
     selectedHistoryId.value = String(historyId);
     draftHistory.value.unshift({
       id: historyId,
       createdAt: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-      instructions: instructions.value.trim(),
+      instructions: requestInstructions,
       draft: response.draft,
       appliedCount: 0,
     });
     draftHistory.value = draftHistory.value.slice(0, 10);
   } catch (cause: unknown) {
     if (cause && typeof cause === 'object') {
-      const request = cause as { data?: { statusMessage?: unknown }; statusMessage?: unknown };
+      const request = cause as {
+        data?: { statusMessage?: unknown; data?: { repositoryEvidence?: { included: boolean; warning?: string } } };
+        statusMessage?: unknown;
+      };
       const message = request.data?.statusMessage || request.statusMessage;
+      repositoryNotice.value = request.data?.data?.repositoryEvidence || null;
       error.value = typeof message === 'string' ? message : 'Le fournisseur IA n’a pas pu préparer le brouillon.';
     } else {
       error.value = 'Le fournisseur IA n’a pas pu préparer le brouillon.';
@@ -201,14 +221,18 @@ const allowedFields = AI_DRAFT_FIELDS[props.resource] as readonly string[];
       </select>
     </label>
     <div class="admin-gemini-model-description"><strong>{{ selectedModelOptions.find(model => model.id === selectedModel)?.label || selectedModel }}</strong><p>{{ selectedModelDescription }}</p></div>
-    <label class="admin-gemini-prompt">Que veux-tu améliorer ou compléter ?
+    <label v-if="!isProjectDraft" class="admin-gemini-prompt">Que veux-tu améliorer ou compléter ?
       <textarea v-model="instructions" rows="3" maxlength="1000" placeholder="Ex. Reformule la description pour mettre l’accent sur les objectifs et le travail réellement réalisé."></textarea>
     </label>
-    <label class="admin-gemini-consent"><input v-model="consent" type="checkbox"><span>J’accepte d’envoyer ma demande et les champs affichés au fournisseur choisi. Pour un projet, son dépôt explicitement saisi ou les dépôts trouvés avec tous les comptes GitHub configurés peuvent être transmis comme contexte. Seul Gemini peut aussi consulter l’URL de démo.</span></label>
+    <p v-else class="admin-gemini-privacy">Renseigne le lien GitHub dans la fiche projet. L’assistant analysera le dépôt et préparera automatiquement tous les champs qu’il peut justifier, sans consigne à écrire.</p>
+    <label class="admin-gemini-consent"><input v-model="consent" type="checkbox"><span>{{ isProjectDraft ? 'J’accepte d’envoyer les champs de la fiche et le contexte d’analyse du dépôt GitHub indiqué au fournisseur choisi. Seul Gemini peut aussi consulter l’URL de démo.' : 'J’accepte d’envoyer ma demande et les champs affichés au fournisseur choisi. Pour un projet, son dépôt explicitement saisi ou les dépôts trouvés avec tous les comptes GitHub configurés peuvent être transmis comme contexte. Seul Gemini peut aussi consulter l’URL de démo.' }}</span></label>
     <p class="admin-gemini-privacy">Le modèle ne peut modifier que les champs listés pour cette fiche. Tu peux relire, annuler ou modifier le résultat avant d’enregistrer. L’historique reste dans cette édition; aucun brouillon n’est sauvegardé automatiquement.</p>
     <p v-if="error" class="admin-alert error" role="alert">{{ error }}</p>
-    <button class="button secondary" type="button" :disabled="busy||!consent||!selectedProviderConfigured||instructions.trim().length<4" @click="generateDraft">
-      <LoaderCircle v-if="busy" :size="15" class="admin-spinner" /><Sparkles v-else :size="15" />{{ busy?'Préparation du brouillon…':'Générer un brouillon' }}
+    <p v-if="repositoryNotice" :class="['admin-alert', repositoryNotice.included ? 'success' : 'error']" role="status">
+      {{ repositoryNotice.included ? 'Contexte GitHub du dépôt transmis au fournisseur.' : repositoryNotice.warning || 'Le dépôt n’a pas pu être lu; le brouillon repose seulement sur les champs de la fiche.' }}
+    </p>
+    <button class="button secondary" type="button" :disabled="busy||!consent||!selectedProviderConfigured||(isProjectDraft?!repositoryUrl:instructions.trim().length<4)" @click="generateDraft">
+      <LoaderCircle v-if="busy" :size="15" class="admin-spinner" /><Sparkles v-else :size="15" />{{ busy?'Préparation du brouillon…':isProjectDraft?'Analyser le dépôt et préparer le projet':'Générer un brouillon' }}
     </button>
     <div v-if="draft" class="admin-gemini-draft" aria-live="polite">
       <strong>Brouillon à relire</strong>

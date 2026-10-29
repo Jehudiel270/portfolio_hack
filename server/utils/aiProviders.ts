@@ -7,6 +7,7 @@ import { getDatabase } from '~/server/utils/database';
 import { aiProviderCredentials, aiProviderUsage } from '~/server/utils/schema';
 import { buildScreenshotRequest, MAX_SITE_CAPTURE_BYTES, type SiteCaptureMode } from '~/server/utils/siteCapture';
 import { createGithubAccount, decodeGithubAccounts, encodeGithubAccounts, MAX_GITHUB_ACCOUNTS, shouldTryNextGithubCredential } from '~/server/utils/githubAccounts';
+import { redactRepositorySecrets, selectGithubSourceFiles, type GithubTreeEntry } from '~/server/utils/githubRepositoryEvidence';
 
 const providerNames = Object.keys(AI_PROVIDER_DETAILS) as AiProvider[];
 
@@ -528,7 +529,7 @@ export async function readGithubRepositoryEvidence(repoUrl: string, apiKeys: str
     throw createError({ statusCode: 400, statusMessage: 'Seuls les dépôts GitHub sont pris en charge.' });
   }
   const [, owner, repoName] = url.pathname.split('/');
-  if (!owner || !repoName) {
+  if (!owner || !repoName || !/^[A-Za-z0-9_.-]{1,100}$/u.test(owner) || !/^[A-Za-z0-9_.-]{1,100}$/u.test(repoName.replace(/\.git$/u, ''))) {
     throw createError({ statusCode: 400, statusMessage: 'Le lien doit pointer directement vers un dépôt GitHub.' });
   }
   const repo = repoName.replace(/\.git$/u, '');
@@ -540,39 +541,82 @@ export async function readGithubRepositoryEvidence(repoUrl: string, apiKeys: str
     return headers;
   };
 
-  let readme = '';
-  try { readme = await readGithubReadme(repoUrl, credentials); } catch { /* Continue with repository metadata and manifests. */ }
-
-  const parts: string[] = [];
-  for (const apiKey of credentials) {
-    try {
-      const repoResponse = await providerFetch(`${apiBase('github')}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, { headers: headersFor(apiKey) }, 8_000, 'GitHub');
-      if (repoResponse.ok) {
-        const metadata = await providerJson<{ description?: unknown; language?: unknown; topics?: unknown; homepage?: unknown; default_branch?: unknown; stargazers_count?: unknown; forks_count?: unknown }>(repoResponse, 'GitHub');
-        parts.push(`Métadonnées du dépôt:\n${JSON.stringify(metadata)}`);
-        break;
-      }
-      if (!shouldTryNextGithubCredential(repoResponse.status)) break;
-    } catch {
-      continue;
-    }
-  }
-
-  for (const apiKey of credentials) {
-    for (const fileName of ['package.json', 'pyproject.toml', 'Cargo.toml', 'go.mod']) {
+  const repoApiPath = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+  const getGithubJson = async <T>(path: string, timeoutMs = 8_000): Promise<T | null> => {
+    for (const apiKey of credentials) {
       try {
-        const response = await providerFetch(`${apiBase('github')}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${fileName}`, { headers: headersFor(apiKey) }, 8_000, 'GitHub');
-        if (!response.ok) continue;
-        const payload = await providerJson<{ content?: unknown; encoding?: unknown }>(response, 'GitHub');
-        if (payload.encoding === 'base64' && typeof payload.content === 'string') {
-          const content = Buffer.from(payload.content.replace(/\s+/gu, ''), 'base64').toString('utf8').slice(0, 15_000);
-          parts.push(`${fileName}:\n${content}`);
+        const response = await providerFetch(`${apiBase('github')}${path}`, { headers: headersFor(apiKey) }, timeoutMs, 'GitHub');
+        if (!response.ok) {
+          if (shouldTryNextGithubCredential(response.status)) continue;
+          return null;
         }
+        const declaredLength = Number(response.headers.get('content-length') || 0);
+        if (declaredLength > 1_000_000) return null;
+        const body = await response.text();
+        if (body.length > 1_000_000) return null;
+        return JSON.parse(body) as T;
       } catch {
         continue;
       }
     }
+    return null;
+  };
+  type RepositoryMetadata = {
+    description?: unknown;
+    language?: unknown;
+    topics?: unknown;
+    homepage?: unknown;
+    default_branch?: unknown;
+    stargazers_count?: unknown;
+    forks_count?: unknown;
+  };
+  type GithubContent = { content?: unknown; encoding?: unknown; size?: unknown };
+  type GithubTree = { tree?: unknown; truncated?: unknown };
+
+  const parts: string[] = [];
+  const [readme, metadata] = await Promise.all([
+    readGithubReadme(repoUrl, credentials).catch(() => ''),
+    getGithubJson<RepositoryMetadata>(repoApiPath),
+  ]);
+  if (metadata) parts.push(`Métadonnées du dépôt:\n${JSON.stringify(metadata)}`);
+
+  const defaultBranch = typeof metadata?.default_branch === 'string' ? metadata.default_branch : '';
+  const [tree, manifestPayloads] = await Promise.all([
+    defaultBranch
+      ? getGithubJson<GithubTree>(`${repoApiPath}/git/trees/${encodeURIComponent(defaultBranch)}?recursive=1`)
+      : Promise.resolve(null),
+    Promise.all(['package.json', 'pyproject.toml', 'Cargo.toml', 'go.mod'].map(async fileName => ({
+      fileName,
+      payload: await getGithubJson<GithubContent>(`${repoApiPath}/contents/${fileName}?ref=${encodeURIComponent(defaultBranch)}`),
+    }))),
+  ]);
+
+  for (const { fileName, payload } of manifestPayloads) {
+    if (payload?.encoding === 'base64' && typeof payload.content === 'string'
+      && !(typeof payload.size === 'number' && payload.size > 32_000)) {
+      const content = Buffer.from(payload.content.replace(/\s+/gu, ''), 'base64').toString('utf8');
+      parts.push(`${fileName}:\n${redactRepositorySecrets(content).slice(0, 8_000)}`);
+    }
   }
-  if (readme) parts.unshift(`README:\n${readme}`);
+
+  const treeEntries = Array.isArray(tree?.tree)
+    ? tree.tree.filter((entry): entry is GithubTreeEntry => Boolean(entry) && typeof entry === 'object'
+      && typeof (entry as GithubTreeEntry).path === 'string'
+      && (entry as GithubTreeEntry).type === 'blob')
+    : [];
+  const sourcePaths = selectGithubSourceFiles(treeEntries);
+  const sourceFiles = await Promise.all(sourcePaths.map(async path => {
+    const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+    const payload = await getGithubJson<GithubContent>(`${repoApiPath}/contents/${encodedPath}?ref=${encodeURIComponent(defaultBranch)}`);
+    if (payload?.encoding !== 'base64' || typeof payload.content !== 'string'
+      || (typeof payload.size === 'number' && payload.size > 32_000)) return '';
+    const content = Buffer.from(payload.content.replace(/\s+/gu, ''), 'base64').toString('utf8');
+    return `Fichier source ${path}:\n${redactRepositorySecrets(content).slice(0, 8_000)}`;
+  }));
+  for (const source of sourceFiles) {
+    if (source) parts.push(source);
+  }
+  if (readme) parts.unshift(`README:\n${redactRepositorySecrets(readme)}`);
+  if (tree?.truncated === true) parts.push('Arborescence partielle : GitHub a tronqué la liste des fichiers du dépôt.');
   return parts.join('\n\n---\n\n').slice(0, 45_000);
 }
