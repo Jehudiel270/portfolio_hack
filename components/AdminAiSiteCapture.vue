@@ -122,7 +122,7 @@ async function addToGallery() {
       <h3><Camera :size="15" /> Capturer le vrai site du projet</h3>
       <p>Crée une capture réelle de l’URL de démonstration, pas une image générée. La capture sera prévisualisée puis envoyée à Cloudinary uniquement si tu l’ajoutes à la galerie.</p>
     </div>
-    <label class="admin-gemini-consent"><input v-model="consent" type="checkbox"><span>J’accepte d’envoyer l’URL publique du projet à ScreenshotOne. Le service visitera la page sans mes cookies de connexion. Une capture peut utiliser le quota de la clé configurée.</span></label>
+    <div class="admin-gemini-consent admin-capture-consent"><input v-model="consent" type="checkbox" aria-label="Autoriser l’envoi de l’URL à ScreenshotOne"><span>J’accepte d’envoyer l’URL publique du projet à ScreenshotOne. Le service visitera la page sans mes cookies de connexion. Une capture peut utiliser le quota de la clé configurée.</span></div>
     <small v-if="!projectUrl.trim()" class="muted">Renseigne d’abord l’URL de démonstration HTTPS dans les champs de la fiche.</small>
     <div class="admin-ai-site-capture-controls">
       <label>Format de capture
