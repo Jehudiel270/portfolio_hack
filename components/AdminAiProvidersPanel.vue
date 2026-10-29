@@ -259,9 +259,16 @@ onMounted(() => {
           </div>
         </template>
         <template v-else>
-        <label>Modèle / API
-          <input v-model.trim="models[provider.id]" :disabled="provider.id==='screenshotone'" :placeholder="provider.defaultModel" maxlength="120">
+        <label>{{ provider.id==='screenshotone'?'API':'Modèle / API' }}
+          <select v-if="provider.availableModels?.length && provider.id!=='screenshotone'" v-model="models[provider.id]">
+            <option v-for="model in provider.availableModels" :key="model.id" :value="model.id">{{ model.label }} · {{ model.id }}</option>
+          </select>
+          <input v-else v-model.trim="models[provider.id]" :disabled="provider.id==='screenshotone'" :placeholder="provider.defaultModel" maxlength="120">
         </label>
+        <div v-if="provider.availableModels?.find(model => model.id === models[provider.id])?.description" class="admin-ai-model-description">
+          <strong>{{ provider.availableModels.find(model => model.id === models[provider.id])?.label }}</strong>
+          <p>{{ provider.availableModels.find(model => model.id === models[provider.id])?.description }}</p>
+        </div>
         <label>Clé API
           <span class="admin-secret-input"><input v-model="keys[provider.id]" :type="showProviderKeys[provider.id]?'text':'password'" autocomplete="new-password" :placeholder="provider.configured ? provider.managedInDashboard ? 'Laisser vide pour conserver la clé' : 'Clé d’environnement détectée · optionnel pour la chiffrer en base' : 'Coller la clé secrète ici'" maxlength="500"><button class="icon-button" type="button" :aria-label="showProviderKeys[provider.id]?'Masquer la clé':'Afficher la clé'" @click="showProviderKeys[provider.id]=!showProviderKeys[provider.id]"><EyeOff v-if="showProviderKeys[provider.id]" :size="14" /><Eye v-else :size="14" /></button></span>
         </label>

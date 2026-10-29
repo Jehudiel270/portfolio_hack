@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Check, Clock3, LoaderCircle, Sparkles, Undo2 } from 'lucide-vue-next';
 import { AI_DRAFT_FIELDS, AI_TEXT_PROVIDERS, type AiDraftResource, type AiProvider, type AiTextProvider } from '~/shared/adminAi';
 
@@ -7,7 +7,7 @@ const props = defineProps<{
   resource: AiDraftResource;
   current: Record<string, unknown>;
 }>();
-type ProviderOption = { id: AiProvider; label: string; configured: boolean; model: string };
+type ProviderOption = { id: AiProvider; label: string; configured: boolean; model: string; availableModels?: Array<{ id: string; label: string; description: string }> };
 type TextProviderOption = Omit<ProviderOption, 'id'> & { id: AiTextProvider };
 const emit = defineEmits<{
   apply: [draft: Record<string, unknown>];
@@ -21,7 +21,19 @@ const draft = ref<Record<string, unknown> | null>(null);
 const modelUsed = ref('');
 const providers = ref<TextProviderOption[]>([]);
 const selectedProvider = ref<AiTextProvider>('gemini');
+const selectedModel = ref('');
 const selectedProviderConfigured = computed(() => providers.value.some(provider => provider.id === selectedProvider.value && provider.configured));
+const selectedProviderOption = computed(() => providers.value.find(provider => provider.id === selectedProvider.value));
+const selectedModelOptions = computed(() => selectedProviderOption.value?.availableModels?.length ? selectedProviderOption.value.availableModels : [{ id: selectedProviderOption.value?.model || '', label: selectedProviderOption.value?.model || 'Modèle par défaut', description: 'Modèle actuellement configuré comme valeur par défaut.' }]);
+const selectedModelDescription = computed(() => selectedModelOptions.value.find(model => model.id === selectedModel.value)?.description || 'Modèle utilisé uniquement pour cette génération.');
+
+function selectProvider(provider: AiTextProvider) {
+  selectedProvider.value = provider;
+  const option = providers.value.find(item => item.id === provider);
+  selectedModel.value = option?.model || option?.availableModels?.[0]?.id || '';
+}
+
+watch(selectedProvider, (provider) => selectProvider(provider));
 const selectedHistoryId = ref('');
 const draftHistory = ref<Array<{
   id: number;
@@ -79,7 +91,7 @@ onMounted(async () => {
     const result = await $fetch<{ providers: ProviderOption[] }>('/api/admin/ai/providers');
     providers.value = result.providers.filter((provider): provider is TextProviderOption => AI_TEXT_PROVIDERS.some(id => id === provider.id));
     const configured = providers.value.find((provider) => provider.configured);
-    if (configured) selectedProvider.value = configured.id;
+    if (configured) selectProvider(configured.id);
   } catch {
     error.value = 'Impossible de charger la liste des fournisseurs IA.';
   }
@@ -105,7 +117,7 @@ async function generateDraft() {
     ));
     const response = await $fetch<{ draft: Record<string, unknown>; model: string; provider: string }>('/api/admin/ai/draft', {
       method: 'POST',
-      body: { resource: props.resource, provider: selectedProvider.value, instructions: instructions.value.trim(), current },
+      body: { resource: props.resource, provider: selectedProvider.value, model: selectedModel.value || undefined, instructions: instructions.value.trim(), current },
       headers: { 'x-admin-csrf': csrf },
     });
     draft.value = response.draft;
@@ -178,10 +190,16 @@ const allowedFields = AI_DRAFT_FIELDS[props.resource] as readonly string[];
       <span class="admin-gemini-model">{{ modelUsed || 'Fournisseur au choix' }}</span>
     </div>
     <label class="admin-gemini-provider">Fournisseur de rédaction
-      <select v-model="selectedProvider">
+      <select v-model="selectedProvider" @change="selectProvider(selectedProvider)">
         <option v-for="provider in providers" :key="provider.id" :value="provider.id" :disabled="!provider.configured">{{ provider.label }} · {{ provider.configured ? provider.model : 'clé non configurée' }}</option>
       </select>
     </label>
+    <label class="admin-gemini-provider">Modèle pour cette génération
+      <select v-model="selectedModel" :disabled="!selectedProviderConfigured">
+        <option v-for="model in selectedModelOptions" :key="model.id" :value="model.id">{{ model.label }} · {{ model.id }}</option>
+      </select>
+    </label>
+    <div class="admin-gemini-model-description"><strong>{{ selectedModelOptions.find(model => model.id === selectedModel)?.label || selectedModel }}</strong><p>{{ selectedModelDescription }}</p></div>
     <label class="admin-gemini-prompt">Que veux-tu améliorer ou compléter ?
       <textarea v-model="instructions" rows="3" maxlength="1000" placeholder="Ex. Reformule la description pour mettre l’accent sur les objectifs et le travail réellement réalisé."></textarea>
     </label>

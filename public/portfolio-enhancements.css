@@ -2558,7 +2558,10 @@ html[data-theme='light'] .admin-gemini-assistant {
   background: linear-gradient(135deg, rgba(237, 232, 249, .92), rgba(220, 229, 241, .92));
 }
 html[data-theme='light'] .admin-gemini-prompt textarea { background: rgba(255, 255, 255, .86); }
-html[data-theme='light'] .admin-gemini-model { color: #5e439a; }
+html[data-theme='light'] .admin-gemini-model-description { display: grid; gap: 4px; padding: 8px 10px; border-left: 2px solid rgba(184,154,255,.6); border-radius: 4px; background: rgba(138,92,255,.08); }
+.admin-gemini-model-description strong { font-size: 11px; }
+.admin-gemini-model-description p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.admin-gemini-model { color: #5e439a; }
 html[data-theme='light'] .admin-gemini-draft { background: rgba(220, 245, 232, .85); }
 html[data-theme='light'] .admin-gemini-history > button { background: rgba(255, 255, 255, .7); }
 html[data-theme='light'] .admin-gemini-provider select,

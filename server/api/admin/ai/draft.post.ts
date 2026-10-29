@@ -17,6 +17,7 @@ const profileSchema = z.object({
 const requestSchema = z.object({
   resource: z.enum(Object.keys(AI_DRAFT_FIELDS) as [AiDraftResource, ...AiDraftResource[]]),
   provider: z.enum(AI_TEXT_PROVIDERS).default('gemini'),
+  model: z.string().trim().regex(/^[a-zA-Z0-9._:/-]{1,120}$/u, 'Nom de modèle invalide.').optional(),
   instructions: z.string().trim().min(4).max(1000),
   current: z.record(z.string(), z.unknown()).default({}),
 });
@@ -30,7 +31,7 @@ export default defineEventHandler(async (event) => {
   if (!parsedRequest.success) {
     throw createError({ statusCode: 400, statusMessage: 'Demande IA invalide. Vérifie le texte et la fiche sélectionnée.' });
   }
-  const { resource, provider, instructions, current } = parsedRequest.data;
+  const { resource, provider, model, instructions, current } = parsedRequest.data;
   const allowedFields = AI_DRAFT_FIELDS[resource];
   const extraFields = Object.keys(current).filter((key) => !(allowedFields as readonly string[]).includes(key));
   if (extraFields.length) {
@@ -81,12 +82,12 @@ export default defineEventHandler(async (event) => {
   const result = provider === 'gemini'
     ? await callTextProviderWithGeminiFallback(
         ((await listGeminiCredentials()).map(account => account.apiKey).length ? (await listGeminiCredentials()).map(account => account.apiKey) : [credential.apiKey]),
-        credential.model,
+        model || credential.model,
         systemInstruction,
         prompt,
         contextUrl,
       )
-    : await callTextProvider(provider, credential.apiKey, credential.model, systemInstruction, prompt);
+    : await callTextProvider(provider, credential.apiKey, model || credential.model, systemInstruction, prompt);
   await addProviderUsage(provider, result.input, result.output);
   let generatedDraft: unknown;
   try {
@@ -105,5 +106,5 @@ export default defineEventHandler(async (event) => {
   if (!draftValidation.success || !Object.keys(draftValidation.data).length) {
     throw createError({ statusCode: 502, statusMessage: 'Le fournisseur IA a proposé des valeurs incompatibles avec la fiche. Réessaie avec une demande plus précise.' });
   }
-  return { resource, provider, model: credential.model, draft: draftValidation.data };
+  return { resource, provider, model: model || credential.model, draft: draftValidation.data };
 });
