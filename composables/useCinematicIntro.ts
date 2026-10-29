@@ -484,6 +484,7 @@ export function useCinematicIntroRunner(options: RunnerOptions) {
   const armed = ref(false);
   const soundBlocked = ref(false);
   const minimalMode = ref(false);
+  const entryGateVisible = ref(false);
   let run: RunState | null = null;
   let previousHidden = new Set<number>();
 
@@ -674,8 +675,9 @@ export function useCinematicIntroRunner(options: RunnerOptions) {
     state.raf = window.requestAnimationFrame(tick);
   }
 
-  async function begin(kind: 'play' | 'minimal', markSeen: boolean) {
+  async function begin(kind: 'play' | 'minimal', markSeen: boolean, withSound = true) {
     const settings = sanitizeCinematicIntroSettings(options.settings());
+    if (!withSound) settings.audio = { ...settings.audio, enabled: false };
     phase.value = 'pending';
     await nextTick();
     if (!options.root.value) { options.onFinish({ skipped: false, reason: 'not-needed' }); return; }
@@ -746,17 +748,48 @@ export function useCinematicIntroRunner(options: RunnerOptions) {
       options.onFinish({ skipped: false, reason: 'not-needed' });
       return;
     }
+    if (settings.entryGate) {
+      entryGateVisible.value = true;
+      phase.value = 'pending';
+      armed.value = false;
+      setDocState('running');
+      return;
+    }
     void begin(decision, true);
+  }
+
+  function startWithSound() {
+    if (!entryGateVisible.value) return;
+    entryGateVisible.value = false;
+    const reduced = prefersReducedMotion();
+    void begin(reduced ? 'minimal' : 'play', true, true);
+  }
+
+  function startWithoutSound() {
+    if (!entryGateVisible.value) return;
+    entryGateVisible.value = false;
+    const reduced = prefersReducedMotion();
+    void begin(reduced ? 'minimal' : 'play', true, false);
   }
 
   /** Bouton « Rejouer l'intro » : action explicite du visiteur, donc lecture audio autorisée. */
   function replay() {
     if (run && !run.finished) return;
+    entryGateVisible.value = false;
     const reduced = prefersReducedMotion();
-    void begin(reduced ? 'minimal' : 'play', false);
+    void begin(reduced ? 'minimal' : 'play', false, true);
   }
 
-  function skip() { finish(true); }
+  function skip() {
+    if (entryGateVisible.value) {
+      entryGateVisible.value = false;
+      setDocState('done');
+      phase.value = 'done';
+      options.onFinish({ skipped: true, reason: 'skipped' });
+      return;
+    }
+    finish(true);
+  }
 
   /** À appeler depuis onBeforeUnmount : libère tout sans émettre d'événement. */
   function dispose() {
@@ -765,5 +798,5 @@ export function useCinematicIntroRunner(options: RunnerOptions) {
     if (typeof document !== 'undefined') setDocState('done');
   }
 
-  return { phase, armed, soundBlocked, minimalMode, mount, replay, skip, enableSound, dispose };
+  return { phase, armed, soundBlocked, minimalMode, entryGateVisible, mount, replay, skip, enableSound, startWithSound, startWithoutSound, dispose };
 }

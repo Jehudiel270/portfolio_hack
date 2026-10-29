@@ -156,6 +156,7 @@ onBeforeUnmount(() => { stopSample(); window.clearTimeout(checkTimer); });
       <div class="public-backdrop-controls">
         <label class="backdrop-toggle-option"><input v-model="model.enabled" type="checkbox"><span>Activer l’introduction</span><small>Décochée : le site s’affiche directement, sans overlay.</small></label>
         <label class="backdrop-toggle-option"><input v-model="model.replayButton" type="checkbox"><span>Bouton « Rejouer l’intro »</span><small>Discret, sur le site ; fonctionne aussi quand l’intro automatique est désactivée.</small></label>
+        <label class="backdrop-toggle-option"><input v-model="model.entryGate" type="checkbox"><span>Proposer « Avec son » / « Sans son »</span><small>Affiche deux choix avant l’introduction ; permet au navigateur d’autoriser le son.</small></label>
       </div>
       <div class="cin-set-fields">
         <div class="field"><label for="cin-frequency">Fréquence d’affichage</label>

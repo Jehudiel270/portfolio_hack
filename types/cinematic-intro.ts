@@ -33,6 +33,8 @@ export interface CinematicIntroSettings {
   revision: number;
   /** Petit bouton discret « Rejouer l'intro » sur le site (fonctionne aussi si l'intro automatique est désactivée). */
   replayButton: boolean;
+  /** Écran initial avec les choix « Entrer avec le son » et « Entrer sans son ». */
+  entryGate: boolean;
   /** Comportement avec prefers-reduced-motion : révélation immédiate ou affichage statique minimal. */
   reducedMotion: CinematicIntroReducedMotion;
 
@@ -102,6 +104,7 @@ export const defaultCinematicIntroSettings: CinematicIntroSettings = Object.free
   frequency: 'session',
   revision: 1,
   replayButton: false,
+  entryGate: true,
   reducedMotion: 'skip',
 
   text: 'DOSSOU Carrel',
@@ -263,6 +266,7 @@ export function sanitizeCinematicIntroSettings(input: unknown): CinematicIntroSe
     frequency: pickEnum(raw.frequency, ['session', 'always', 'first-visit'] as const, d.frequency),
     revision: pickNumber(raw.revision, d.revision, L.revision.min, L.revision.max),
     replayButton: pickBool(raw.replayButton, d.replayButton),
+    entryGate: pickBool(raw.entryGate, d.entryGate),
     reducedMotion: pickEnum(raw.reducedMotion, ['skip', 'minimal'] as const, d.reducedMotion),
 
     text: pickText(raw.text, d.text, L.text.min, L.text.max),

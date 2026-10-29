@@ -27,7 +27,7 @@ const runner = useCinematicIntroRunner({
   preview: props.preview,
   onFinish: (info) => emit('done', info),
 });
-const { phase, armed, soundBlocked, minimalMode } = runner;
+const { phase, armed, soundBlocked, minimalMode, entryGateVisible } = runner;
 
 /** Rendu serveur : l'overlay est présent dès le premier octet (pas de flash du site), puis le client décide. */
 const showOverlay = computed(() => phase.value !== 'done' && (props.preview || config.value.enabled));
@@ -74,7 +74,21 @@ onBeforeUnmount(() => runner.dispose());
       <div class="cin-screen">
         <div class="cin-bg" aria-hidden="true"></div>
 
-        <div class="cin-stage">
+        <div v-if="entryGateVisible" class="cin-entry-gate" role="group" aria-label="Choisir comment entrer">
+          <div class="cin-entry-mark" aria-hidden="true"><span></span></div>
+          <h1>Entrer dans le portfolio</h1>
+          <div class="cin-entry-actions">
+            <button class="cin-entry-button cin-entry-button--sound" type="button" @click="runner.startWithSound()">
+              <Volume2 :size="18" aria-hidden="true" /><span>Avec le son</span>
+            </button>
+            <button class="cin-entry-button" type="button" @click="runner.startWithoutSound()">
+              <span>Sans son</span>
+            </button>
+          </div>
+          <button class="cin-entry-skip" type="button" @click="runner.skip()">Passer l’introduction</button>
+        </div>
+
+        <div v-else class="cin-stage">
           <div class="cin-name" aria-hidden="true">
             <div class="cin-layer cin-ghost cin-ghost--m"><CinematicIntroText :words="text.words" /></div>
             <div class="cin-layer cin-ghost cin-ghost--c"><CinematicIntroText :words="text.words" /></div>
@@ -98,7 +112,7 @@ onBeforeUnmount(() => runner.dispose());
 
       <div class="cin-line" aria-hidden="true"></div>
 
-      <div class="cin-controls">
+      <div v-if="!entryGateVisible" class="cin-controls">
         <button
           v-if="soundBlocked && phase === 'glitch'"
           class="cin-chip cin-sound"
@@ -141,6 +155,23 @@ html[data-cinematic-intro='running'] { overflow: hidden; }
     radial-gradient(60% 46% at 50% 50%, color-mix(in srgb, var(--cin-blue) 15%, transparent), transparent 72%),
     radial-gradient(38% 34% at 80% 16%, color-mix(in srgb, var(--cin-violet) 13%, transparent), transparent 70%);
 }
+.cin-entry-gate {
+  position: relative; z-index: 3; width: min(680px, calc(100vw - 40px)); display: grid; justify-items: center; gap: 22px;
+  text-align: center; padding: clamp(24px, 5vw, 44px); border: 1px solid color-mix(in srgb, var(--cin-cyan) 32%, transparent);
+  border-radius: 24px; background: color-mix(in srgb, var(--cin-bg) 88%, transparent); backdrop-filter: blur(18px);
+  box-shadow: 0 24px 90px color-mix(in srgb, var(--cin-blue) 18%, transparent), inset 0 1px 0 color-mix(in srgb, var(--cin-text) 8%, transparent);
+}
+.cin-entry-mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--cin-cyan) 55%, transparent); }
+.cin-entry-mark span { width: 9px; height: 9px; border-radius: 50%; background: var(--cin-cyan); box-shadow: 0 0 18px var(--cin-cyan); }
+.cin-entry-gate h1 { margin: 0; font-size: clamp(1.35rem, 4vw, 2.25rem); line-height: 1.1; letter-spacing: -0.03em; }
+.cin-entry-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cin-entry-button { min-height: 56px; border: 1px solid color-mix(in srgb, var(--cin-text) 18%, transparent); border-radius: 14px; background: color-mix(in srgb, var(--cin-text) 7%, transparent); color: var(--cin-text); display: inline-flex; align-items: center; justify-content: center; gap: 10px; font: 700 0.95rem var(--cin-font); cursor: pointer; transition: transform 160ms ease, border-color 160ms ease, background 160ms ease; }
+.cin-entry-button--sound { border-color: color-mix(in srgb, var(--cin-cyan) 58%, transparent); background: color-mix(in srgb, var(--cin-cyan) 12%, transparent); }
+.cin-entry-button:hover, .cin-entry-button:focus-visible { transform: translateY(-2px); border-color: var(--cin-cyan); outline: none; }
+.cin-entry-skip { border: 0; background: transparent; color: color-mix(in srgb, var(--cin-text) 62%, transparent); font: 600 0.78rem var(--cin-font); cursor: pointer; padding: 6px; }
+.cin-entry-skip:hover, .cin-entry-skip:focus-visible { color: var(--cin-text); }
+@media (max-width: 520px) { .cin-entry-actions { grid-template-columns: 1fr; } .cin-entry-gate { gap: 16px; border-radius: 18px; } }
+
 .cin-stage { position: relative; z-index: 2; display: grid; justify-items: center; gap: clamp(10px, 2vw, 22px); padding: 0 5vw; max-width: 100%; }
 
 /* ---------- Nom ---------- */

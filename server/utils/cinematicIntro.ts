@@ -20,6 +20,7 @@ export const cinematicIntroSchema = z.object({
   frequency: z.enum(['session', 'always', 'first-visit']),
   revision: z.coerce.number().int().min(limits.revision.min).max(limits.revision.max),
   replayButton: z.boolean(),
+  entryGate: z.boolean(),
   reducedMotion: z.enum(['skip', 'minimal']),
 
   text: z.string().trim().min(limits.text.min).max(limits.text.max).refine(noControlChars),
