@@ -122,8 +122,8 @@ const overviewStats=computed(()=>[
 const latestContentActivity = computed(() => activityItems.value[0] || null);
 function requestErrorMessage(value:unknown,fallback:string){if(value&&typeof value==='object'){const error=value as {statusMessage?:unknown;message?:unknown;data?:{statusMessage?:unknown;message?:unknown}};for(const message of [error.data?.statusMessage,error.data?.message,error.statusMessage,error.message])if(typeof message==='string'&&message.trim())return message}return fallback}
 async function loadTechnologyCatalog(force=false){if(technologyCatalogLoading.value||technologyCatalogLoaded.value&&!force)return;technologyCatalogLoading.value=true;try{const result=await $fetch<{source:string;items:TechnologyCatalogItem[];warning?:string}>('/api/technology-catalog');technologyCatalog.value=result.items;technologyCatalogSource.value=result.source;technologyCatalogWarning.value=result.warning||'';technologyCatalogLoaded.value=true}catch(error){technologyCatalog.value=localTechnologyCatalog;technologyCatalogSource.value='local';technologyCatalogWarning.value=`${requestErrorMessage(error,'Le catalogue en ligne ne répond pas.') } Une sélection locale reste disponible.`;technologyCatalogLoaded.value=true}finally{technologyCatalogLoading.value=false}}
-function changeTab(id:string){if(!visibleTabs.value.some(tab=>tab.id===id))return;activeTab.value=id;resourcePage.value=1;void navigateTo({path:'/admin',query:{tab:id==='overview'?undefined:id}}, {replace:true});if(['technologies','skills','ai'].includes(id))void loadTechnologyCatalog();if(['overview','analytics','activity'].includes(id))void loadOperations();if(adminDataLoaded.value)void loadAll()}
-async function loadOperations(){try{if(activeTab.value==='analytics'&&hasPermission('analytics.view')){const result=await $fetch<{views:any[];events:any[]}>('/api/admin/analytics');pageViewItems.value=result.views;analyticsEventItems.value=result.events}if(['overview','activity'].includes(activeTab.value)&&hasPermission('activity.view'))activityItems.value=await $fetch<any[]>('/api/admin/activity')}catch(e:unknown){error.value=requestErrorMessage(e,'Impossible de charger ces informations.')}}
+function changeTab(id:string){if(!visibleTabs.value.some(tab=>tab.id===id))return;activeTab.value=id;resourcePage.value=1;void navigateTo({path:'/admin',query:{tab:id==='overview'?undefined:id}}, {replace:true})}
+async function loadOperations(){try{const [analytics,activity]=await Promise.all([hasPermission('analytics.view')?$fetch<{views:any[];events:any[]}>('/api/admin/analytics'):Promise.resolve(null),hasPermission('activity.view')?$fetch<any[]>('/api/admin/activity'):Promise.resolve(null)]);if(analytics){pageViewItems.value=analytics.views;analyticsEventItems.value=analytics.events}if(activity)activityItems.value=activity}catch(e:unknown){error.value=requestErrorMessage(e,'Impossible de charger ces informations.')}}
 async function changeTabWithData(id:string){changeTab(id);if(['analytics','activity'].includes(id))await loadOperations()}
 async function saveSiteSettings(){busy.value=true;error.value='';try{const saved=await $fetch<any>('/api/admin/settings',{method:'PUT',body:{public:{...siteSettings,missionTypes:missionTypesText.value.split(',').map(value=>value.trim()).filter(Boolean)},contactRetentionDays:siteSettings.contactRetentionDays},headers:csrfHeaders()});Object.assign(siteSettings,{...saved.public,background:{...siteSettings.background,...saved.public.background},contactRetentionDays:saved.contactRetentionDays});missionTypesText.value=siteSettings.missionTypes.join(', ');notice.value='Réglages enregistrés.'}catch(e:unknown){error.value=requestErrorMessage(e,'Enregistrement des réglages impossible.')}finally{busy.value=false}}
 async function checkServices(){busy.value=true;try{serviceHealth.value=await $fetch('/api/admin/services');}catch(e:unknown){error.value=requestErrorMessage(e,'Vérification des services impossible.')}finally{busy.value=false}}
@@ -138,20 +138,16 @@ function acknowledgeRecoveryCodes(){recoveryCodes.value=[];void loadAll()}
 async function loadAll(){
   error.value=''; const initialLoad=!adminDataLoaded.value; if(initialLoad)initialDataLoading.value=true;
   try{
-    const selectedResources:Resource[]=['projects','journey','educations','certifications','achievements','testimonials','skills','technologies','ai'].includes(activeTab.value)?[resourceForTab()]:[];
-    if(adminDataLoaded.value){
-      await Promise.all(selectedResources.filter(resource=>hasPermission(`${resource}.view`)).map(async(resource)=>{lists[resource]=await $fetch<any[]>(`/api/admin/content/${resource}`)}));
-      if(activeTab.value==='profile'&&hasPermission('profile.view'))Object.assign(profile,await $fetch<Profile>('/api/admin/profile'));
-      if(activeTab.value==='messages'&&hasPermission('messages.view'))messages.value=await $fetch<any[]>('/api/admin/messages');
-      if(activeTab.value==='settings'&&hasPermission('settings.view')){const settings=await $fetch<any>('/api/admin/settings');Object.assign(siteSettings,{...settings.public,background:{...siteSettings.background,...settings.public.background},contactRetentionDays:settings.contactRetentionDays});missionTypesText.value=siteSettings.missionTypes.join(', ')}
-      await loadOperations(); return;
-    }
+    const allResources:Resource[]=['projects','journey','educations','certifications','achievements','testimonials','skills','technologies'];
+    const resources=initialLoad?allResources:allResources.includes(resourceForTab())?[resourceForTab()]:[];
+    const technologyCatalogPromise=initialLoad&&hasPermission('technologies.view')?loadTechnologyCatalog():Promise.resolve();
     const [rows,profileRow,messageRows,settings]=await Promise.all([
-      Promise.all(selectedResources.filter(resource=>hasPermission(`${resource}.view`)).map(async(resource)=>[resource,await $fetch<any[]>(`/api/admin/content/${resource}`)] as const)),
-      activeTab.value==='profile'&&hasPermission('profile.view')?$fetch<Profile>('/api/admin/profile'):Promise.resolve(null),
-      activeTab.value==='messages'&&hasPermission('messages.view')?$fetch<any[]>('/api/admin/messages'):Promise.resolve([]),
-      activeTab.value==='settings'&&hasPermission('settings.view')?$fetch<any>('/api/admin/settings'):Promise.resolve(null)
+      Promise.all(resources.filter(resource=>hasPermission(`${resource}.view`)).map(async(resource)=>[resource,await $fetch<any[]>(`/api/admin/content/${resource}`)] as const)),
+      initialLoad&&hasPermission('profile.view')?$fetch<Profile>('/api/admin/profile'):Promise.resolve(null),
+      initialLoad&&hasPermission('messages.view')?$fetch<any[]>('/api/admin/messages'):Promise.resolve([]),
+      initialLoad&&hasPermission('settings.view')?$fetch<any>('/api/admin/settings'):Promise.resolve(null)
     ]);
+    await technologyCatalogPromise;
     for(const[resource,items]of rows)lists[resource]=items;
     if(profileRow)Object.assign(profile,profileRow); messages.value=messageRows;
     if(settings){Object.assign(siteSettings,{...settings.public,background:{...siteSettings.background,...settings.public.background},contactRetentionDays:settings.contactRetentionDays});missionTypesText.value=siteSettings.missionTypes.join(', ')}
