@@ -1747,7 +1747,7 @@ html[data-theme='light'] .project-preview-content::-webkit-scrollbar-thumb {
 
 .admin-visual-controls {
   position: fixed;
-  z-index: 46;
+  z-index: 35;
   right: 20px;
   bottom: 20px;
   display: flex;
@@ -2342,6 +2342,42 @@ html[data-theme='light'][data-public-site='true'] .public-light-veil {
 
 .editor-actions-spacer { flex: 1 1 auto; }
 .editor-actions .button { min-height: 40px; }
+.project-category-options {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr));
+  max-height: min(38vh, 360px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+}
+.project-category-options > label {
+  min-width: 0;
+  justify-content: flex-start !important;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 1px solid rgba(74, 131, 204, .24);
+  border-radius: 7px;
+  background: rgba(4, 12, 28, .42);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.project-category-options > label.is-selected {
+  border-color: rgba(25, 230, 239, .62);
+  background: rgba(25, 230, 239, .09);
+  color: var(--cyan);
+}
+.project-category-options > label input {
+  width: 18px !important;
+  min-width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  accent-color: var(--cyan);
+}
+.project-category-options > label input:disabled {
+  cursor: not-allowed;
+}
 .admin-inline-fields { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
 .admin-inline-fields > label { display: grid; flex: 1 1 180px; gap: 5px; min-width: 0; color: var(--muted); font-size: 12px; }
 .admin-option-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 7px; margin-top: 12px; }
@@ -2598,6 +2634,7 @@ html[data-theme='light'] .admin-github-account { background: rgba(255, 255, 255,
   .editor-actions { bottom: -14px; margin: 8px -14px -14px; padding: 10px 14px max(10px, env(safe-area-inset-bottom)); }
   .editor-actions-spacer { display: none; }
   .editor-actions .button { flex: 1 1 auto; justify-content: center; }
+  .project-category-options { grid-template-columns: minmax(0, 1fr); max-height: min(30dvh, 240px); }
   .technology-slot-apply { align-items: stretch; }
   .technology-slot-apply > * { flex: 1 1 100%; }
   .project-detail--editorial > .project-detail-description { padding-left: 12px; }

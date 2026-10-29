@@ -62,6 +62,12 @@ export function normalizeAdminPermissions(value: unknown): AdminPermissions {
   return Object.fromEntries(ADMIN_PERMISSION_KEYS.map((key) => [key, source[key] === true])) as AdminPermissions;
 }
 
+export function requiredViewPermission(permission: AdminPermission): AdminPermission | null {
+  if (permission === 'ai.generate') return 'technologies.view';
+  if (permission.endsWith('.view') || permission === 'uploads.create' || permission === 'cv.preview') return null;
+  return `${permission.slice(0, permission.lastIndexOf('.'))}.view` as AdminPermission;
+}
+
 export function resolveAdminPermission(path: string, method: string): AdminPermission | null {
   if (path === '/api/admin/ai/draft') return method === 'POST' ? 'ai.generate' : null;
   if (path === '/api/admin/ai/image') return method === 'POST' ? 'ai.generate' : null;

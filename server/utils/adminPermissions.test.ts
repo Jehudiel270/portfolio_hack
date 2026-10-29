@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ADMIN_PERMISSION_GROUPS, ADMIN_PERMISSION_KEYS, normalizeAdminPermissions, resolveAdminPermission } from '../../shared/adminPermissions';
+import { ADMIN_PERMISSION_GROUPS, ADMIN_PERMISSION_KEYS, normalizeAdminPermissions, requiredViewPermission, resolveAdminPermission } from '../../shared/adminPermissions';
 
 test('permission groups expose every supported permission exactly once', () => {
   const groupedKeys = ADMIN_PERMISSION_GROUPS.flatMap((group) => group.actions.map((action) => action.key));
@@ -50,4 +50,10 @@ test('permission normalization only allows known explicit grants', () => {
   assert.equal(permissions['projects.delete'], false);
   assert.equal(permissions['messages.view'], false);
   assert.equal('admin.accounts' in permissions, false);
+});
+
+test('permission dependencies map AI generation to technology consultation', () => {
+  assert.equal(requiredViewPermission('ai.generate'), 'technologies.view');
+  assert.equal(requiredViewPermission('projects.update'), 'projects.view');
+  assert.equal(requiredViewPermission('uploads.create'), null);
 });

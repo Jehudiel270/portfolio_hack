@@ -41,6 +41,12 @@ function setGroupPermissions(accountId: number, actions: typeof ADMIN_PERMISSION
   for (const action of actions) drafts[accountId]![action.key] = granted;
 }
 
+function updatePermission(accountId: number, permission: keyof AdminPermissions, granted: boolean) {
+  drafts[accountId]![permission] = granted;
+  if (permission === 'ai.generate' && granted) drafts[accountId]!['technologies.view'] = true;
+  if (permission === 'technologies.view' && !granted) drafts[accountId]!['ai.generate'] = false;
+}
+
 function setAllPermissions(accountId: number, granted: boolean) {
   for (const group of ADMIN_PERMISSION_GROUPS) {
     setGroupPermissions(accountId, group.actions, granted);
@@ -285,7 +291,7 @@ onMounted(loadAccounts);
                 </div>
                 <div class="permission-options">
                   <label v-for="action in group.actions" :key="action.key">
-                    <input v-model="drafts[account.id]![action.key]" type="checkbox">
+                    <input :checked="drafts[account.id]![action.key]" type="checkbox" @change="updatePermission(account.id, action.key, ($event.target as HTMLInputElement).checked)">
                     <span>{{ action.label }}</span>
                   </label>
                 </div>

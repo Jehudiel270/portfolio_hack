@@ -663,7 +663,7 @@ onBeforeUnmount(()=>{if(messagePollTimer)clearInterval(messagePollTimer);if(type
               <p class="muted">Choisis les rôles et domaines fonctionnels du projet, indépendamment de ses technologies. Jusqu’à 12 catégories ; les trois premières apparaissent sur la carte publique.</p>
               <input v-model="projectCategorySearch" type="search" aria-label="Rechercher une catégorie de projet" placeholder="Rechercher parmi les catégories…">
               <div class="page-visibility-options project-category-options">
-                <label v-for="category in filteredProjectCategoryOptions" :key="category">
+                <label v-for="category in filteredProjectCategoryOptions" :key="category" :class="{ 'is-selected': projectCategorySelected(category) }">
                   <input type="checkbox" :checked="projectCategorySelected(category)" :disabled="!projectCategorySelected(category)&&editor.categories.length>=12" @change="toggleProjectCategory(category)">
                   {{ category }}
                 </label>

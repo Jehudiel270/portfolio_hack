@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { requireSuperAdmin } from '~/server/utils/auth';
 import { getDatabase } from '~/server/utils/database';
 import { admins } from '~/server/utils/schema';
-import { normalizeAdminPermissions, type AdminPermission } from '~/shared/adminPermissions';
+import { normalizeAdminPermissions, requiredViewPermission } from '~/shared/adminPermissions';
 
 const schema = z.object({
   active: z.boolean().optional(),
@@ -18,9 +18,9 @@ const schema = z.object({
 function validatePermissions(value: Record<string, boolean>) {
   const permissions = normalizeAdminPermissions(value);
   for (const [key, allowed] of Object.entries(permissions)) {
-    if (!allowed || key.endsWith('.view') || key === 'overview.view' || key === 'uploads.create' || key === 'cv.preview') continue;
-    const group = key.slice(0, key.lastIndexOf('.'));
-    if (permissions[`${group}.view` as AdminPermission] !== true) {
+    if (!allowed) continue;
+    const requiredView = requiredViewPermission(key as keyof typeof permissions);
+    if (requiredView && permissions[requiredView] !== true) {
       throw createError({ statusCode: 400, statusMessage: `L’action ${key} nécessite aussi le droit de consultation.` });
     }
   }
