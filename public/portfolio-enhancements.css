@@ -2514,7 +2514,11 @@ html[data-theme='light'][data-public-site='true'] .public-light-veil {
 .admin-ai-provider-card h3 { margin: 0; font-size: 13px; }
 .admin-ai-provider-card > p { margin: 0; color: var(--muted); font-size: 11px; }
 .admin-ai-provider-card label { display: grid; min-width: 0; gap: 4px; color: var(--muted); font-size: 11px; }
-.admin-ai-provider-card input { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 5px; background: rgba(3, 9, 21, .78); color: var(--text); }
+.admin-ai-provider-card input,
+.admin-ai-provider-card select { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 5px; background: rgba(3, 9, 21, .78); color: var(--text); }
+.admin-ai-model-description { display: grid; gap: 4px; padding: 9px 10px; border-left: 2px solid rgba(25, 230, 239, .55); border-radius: 4px; background: rgba(25, 230, 239, .055); }
+.admin-ai-model-description strong { color: var(--text); font-size: 11px; }
+.admin-ai-model-description p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .admin-ai-provider-card small { overflow-wrap: anywhere; font-size: 10px; }
 .admin-ai-provider-card .status-chip { font-size: 9px; }
 .admin-ai-provider-card .status-chip.is-configured { color: #83f4bf; }
@@ -2558,7 +2562,8 @@ html[data-theme='light'] .admin-gemini-model { color: #5e439a; }
 html[data-theme='light'] .admin-gemini-draft { background: rgba(220, 245, 232, .85); }
 html[data-theme='light'] .admin-gemini-history > button { background: rgba(255, 255, 255, .7); }
 html[data-theme='light'] .admin-gemini-provider select,
-html[data-theme='light'] .admin-ai-provider-card input { background: rgba(255, 255, 255, .88); }
+html[data-theme='light'] .admin-ai-provider-card input,
+html[data-theme='light'] .admin-ai-provider-card select { background: rgba(255, 255, 255, .88); }
 html[data-theme='light'] .admin-ai-provider-card { background: rgba(255, 255, 255, .58); }
 html[data-theme='light'] .admin-ai-cover-generator { background: rgba(223, 244, 246, .7); }
 html[data-theme='light'] .admin-ai-site-capture { background: rgba(237, 232, 249, .7); }

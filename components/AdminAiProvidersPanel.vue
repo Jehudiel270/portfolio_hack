@@ -12,6 +12,7 @@ type ProviderRow = {
   configured: boolean;
   managedInDashboard: boolean;
   model: string;
+  availableModels?: Array<{ id: string; label: string; description: string }>;
 };
 type UsageRow = { day: string; provider: string; requests: number; inputTokens: number; outputTokens: number };
 type GithubAccountRow = { id: string; name: string };
@@ -184,6 +185,11 @@ async function remove(provider: ProviderRow) {
   }
 }
 
+function geminiModelDescription(provider: ProviderRow) {
+  const selected = provider.availableModels?.find(model => model.id === models[provider.id]);
+  return selected?.description || 'Modèle Gemini sélectionné pour les demandes du dashboard.';
+}
+
 function usageFor(provider: string) {
   return usage.value.filter(row => row.provider === provider).reduce((total, row) => ({
     requests: total.requests + row.requests,
@@ -224,7 +230,13 @@ onMounted(() => {
             <small class="muted">Maximum 10 clés. Les clés restent chiffrées et ne sont jamais affichées après enregistrement.</small>
             <button class="button" type="button" :disabled="saving==='gemini-accounts'||!geminiAccountName.trim()||geminiToken.trim().length<16||geminiAccounts.length>=10" @click="addGeminiAccount"><Loader2 v-if="saving==='gemini-accounts'" :size="14" class="admin-spinner" /><Save v-else :size="14" /> Ajouter la clé</button>
           </div>
-          <label>Modèle Gemini<input v-model.trim="models[provider.id]" :placeholder="provider.defaultModel" maxlength="120"></label>
+          <label>Modèle Gemini
+            <select v-model="models[provider.id]">
+              <option v-if="!provider.availableModels?.some(model => model.id === models[provider.id])" :value="models[provider.id]">{{ models[provider.id] }} (modèle enregistré)</option>
+              <option v-for="model in provider.availableModels || []" :key="model.id" :value="model.id">{{ model.label }} · {{ model.id }}</option>
+            </select>
+          </label>
+          <div class="admin-ai-model-description"><strong>{{ provider.availableModels?.find(model => model.id === models[provider.id])?.label || models[provider.id] }}</strong><p>{{ geminiModelDescription(provider) }}</p></div>
         </template>
         <template v-else-if="provider.id==='github'">
           <div class="admin-github-accounts">
