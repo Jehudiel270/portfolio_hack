@@ -28,7 +28,7 @@ export function isNonPublicAddress(address: string) {
 
 export async function validatePublicHttpsUrl(value: string) {
   let url: URL;
-  try { url = new URL(value); } catch { throw createError({ statusCode: 400, statusMessage: 'Le lien du projet doit être une URL HTTPS valide.' }); }
+  try { url = new URL(value); } catch { throw createError({ statusCode: 400, statusMessage: 'Le lien doit être une URL HTTPS valide.' }); }
   const hostname = url.hostname.toLowerCase();
   if (url.protocol !== 'https:' || url.port && url.port !== '443' || url.username || url.password
     || hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local')

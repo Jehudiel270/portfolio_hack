@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { Check, Clock3, LoaderCircle, Sparkles, Undo2 } from 'lucide-vue-next';
-import { AI_DRAFT_FIELDS, AI_TEXT_PROVIDERS, PROJECT_AI_DRAFT_INSTRUCTIONS, type AiDraftResource, type AiProvider, type AiTextProvider } from '~/shared/adminAi';
+import { AI_DRAFT_FIELDS, AI_TEXT_PROVIDERS, CERTIFICATION_AI_DRAFT_INSTRUCTIONS, PROJECT_AI_DRAFT_INSTRUCTIONS, type AiDraftResource, type AiProvider, type AiTextProvider } from '~/shared/adminAi';
 
 const props = defineProps<{
   resource: AiDraftResource;
@@ -17,18 +17,25 @@ const instructions = ref('');
 const consent = ref(false);
 const busy = ref(false);
 const error = ref('');
-const repositoryNotice = ref<{ included: boolean; warning?: string } | null>(null);
+const evidenceNotice = ref<{ included: boolean; warning?: string } | null>(null);
 const draft = ref<Record<string, unknown> | null>(null);
 const modelUsed = ref('');
 const providers = ref<TextProviderOption[]>([]);
 const selectedProvider = ref<AiTextProvider>('gemini');
 const selectedModel = ref('');
-const selectedProviderConfigured = computed(() => providers.value.some(provider => provider.id === selectedProvider.value && provider.configured));
 const selectedProviderOption = computed(() => providers.value.find(provider => provider.id === selectedProvider.value));
 const selectedModelOptions = computed(() => selectedProviderOption.value?.availableModels?.length ? selectedProviderOption.value.availableModels : [{ id: selectedProviderOption.value?.model || '', label: selectedProviderOption.value?.model || 'Modèle par défaut', description: 'Modèle actuellement configuré comme valeur par défaut.' }]);
 const selectedModelDescription = computed(() => selectedModelOptions.value.find(model => model.id === selectedModel.value)?.description || 'Modèle utilisé uniquement pour cette génération.');
 const isProjectDraft = computed(() => props.resource === 'projects');
+const isCertificationDraft = computed(() => props.resource === 'certifications');
 const repositoryUrl = computed(() => typeof props.current.repoUrl === 'string' ? props.current.repoUrl.trim() : '');
+const certificationUrl = computed(() => typeof props.current.credentialUrl === 'string' ? props.current.credentialUrl.trim() : '');
+const canUseSelectedProvider = computed(() => !isCertificationDraft.value || selectedProvider.value === 'gemini');
+const selectedProviderConfigured = computed(() => canUseSelectedProvider.value && providers.value.some(provider => provider.id === selectedProvider.value && provider.configured));
+const generationInstructions = computed(() => isProjectDraft.value
+  ? PROJECT_AI_DRAFT_INSTRUCTIONS
+  : isCertificationDraft.value ? CERTIFICATION_AI_DRAFT_INSTRUCTIONS : instructions.value.trim());
+const canGenerateWithoutPrompt = computed(() => isProjectDraft.value || isCertificationDraft.value);
 function selectProvider(provider: AiTextProvider) {
   selectedProvider.value = provider;
   const option = providers.value.find(item => item.id === provider);
@@ -86,6 +93,12 @@ const fieldLabels: Record<string, string> = {
   bio: 'Présentation',
   education: 'Formation',
   metrics: 'Métriques',
+  caseLayout: 'Présentation de la fiche',
+  featured: 'Projet mis en avant',
+  publishAt: 'Date de publication programmée',
+  sortOrder: 'Ordre d’affichage',
+  credentialId: 'Identifiant du certificat',
+  credentialUrl: 'Lien de vérification',
   officialUrl: 'Lien officiel',
 };
 
@@ -93,7 +106,9 @@ onMounted(async () => {
   try {
     const result = await $fetch<{ providers: ProviderOption[] }>('/api/admin/ai/providers');
     providers.value = result.providers.filter((provider): provider is TextProviderOption => AI_TEXT_PROVIDERS.some(id => id === provider.id));
-    const configured = providers.value.find((provider) => provider.configured);
+    const configured = isCertificationDraft.value
+      ? providers.value.find((provider) => provider.id === 'gemini' && provider.configured)
+      : providers.value.find((provider) => provider.configured);
     if (configured) selectProvider(configured.id);
   } catch {
     error.value = 'Impossible de charger la liste des fournisseurs IA.';
@@ -102,7 +117,7 @@ onMounted(async () => {
 
 async function generateDraft() {
   error.value = '';
-  repositoryNotice.value = null;
+  evidenceNotice.value = null;
   draft.value = null;
   if (!consent.value) {
     error.value = 'Confirme l’envoi des champs sélectionnés au fournisseur choisi avant de continuer.';
@@ -112,7 +127,15 @@ async function generateDraft() {
     error.value = 'Renseigne le lien du dépôt GitHub dans la fiche projet avant de générer le brouillon.';
     return;
   }
-  const requestInstructions = isProjectDraft.value ? PROJECT_AI_DRAFT_INSTRUCTIONS : instructions.value.trim();
+  if (isCertificationDraft.value && !certificationUrl.value) {
+    error.value = 'Renseigne le lien public de vérification du certificat avant de lancer son analyse.';
+    return;
+  }
+  if (isCertificationDraft.value && selectedProvider.value !== 'gemini') {
+    error.value = 'L’analyse d’un lien de vérification est actuellement disponible avec Gemini.';
+    return;
+  }
+  const requestInstructions = generationInstructions.value;
   if (requestInstructions.length < 4) {
     error.value = 'Décris en quelques mots ce que tu veux préparer.';
     return;
@@ -129,13 +152,14 @@ async function generateDraft() {
       model: string;
       provider: string;
       repositoryEvidence?: { included: boolean; warning?: string };
+      sourceEvidence?: { included: boolean; warning?: string };
     }>('/api/admin/ai/draft', {
       method: 'POST',
       body: { resource: props.resource, provider: selectedProvider.value, model: selectedModel.value || undefined, instructions: requestInstructions, current },
       headers: { 'x-admin-csrf': csrf },
     });
     draft.value = response.draft;
-    repositoryNotice.value = response.repositoryEvidence || null;
+    evidenceNotice.value = response.repositoryEvidence || response.sourceEvidence || null;
     modelUsed.value = `${providers.value.find((provider) => provider.id === response.provider)?.label || response.provider} · ${response.model}`;
     const historyId = nextHistoryId++;
     selectedHistoryId.value = String(historyId);
@@ -150,11 +174,11 @@ async function generateDraft() {
   } catch (cause: unknown) {
     if (cause && typeof cause === 'object') {
       const request = cause as {
-        data?: { statusMessage?: unknown; data?: { repositoryEvidence?: { included: boolean; warning?: string } } };
+        data?: { statusMessage?: unknown; data?: { repositoryEvidence?: { included: boolean; warning?: string }; sourceEvidence?: { included: boolean; warning?: string } } };
         statusMessage?: unknown;
       };
       const message = request.data?.statusMessage || request.statusMessage;
-      repositoryNotice.value = request.data?.data?.repositoryEvidence || null;
+      evidenceNotice.value = request.data?.data?.repositoryEvidence || request.data?.data?.sourceEvidence || null;
       error.value = typeof message === 'string' ? message : 'Le fournisseur IA n’a pas pu préparer le brouillon.';
     } else {
       error.value = 'Le fournisseur IA n’a pas pu préparer le brouillon.';
@@ -164,9 +188,19 @@ async function generateDraft() {
   }
 }
 
-function displayValue(value: unknown) {
+function displayValue(value: unknown, field = '') {
+  if (field === 'metrics' && Array.isArray(value)) {
+    return value.map((item, index) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return `${index + 1}. ${String(item)}`;
+      const metric = item as Record<string, unknown>;
+      const unit = typeof metric.unit === 'string' && metric.unit ? ` ${metric.unit}` : '';
+      const context = typeof metric.context === 'string' && metric.context ? ` — ${metric.context}` : '';
+      return `${index + 1}. ${String(metric.label || 'Indicateur')} : ${String(metric.value || 'Valeur à préciser')}${unit}${context}`;
+    }).join('\n');
+  }
   if (Array.isArray(value)) return value.map(item => typeof item === 'object' && item !== null ? JSON.stringify(item) : String(item)).join(', ');
-  return value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value ?? '');
+  if (value !== null && typeof value === 'object') return JSON.stringify(value, null, 2);
+  return String(value ?? '');
 }
 
 function selectHistory(entry: (typeof draftHistory.value)[number]) {
@@ -210,7 +244,7 @@ const allowedFields = AI_DRAFT_FIELDS[props.resource] as readonly string[];
     </div>
     <label class="admin-gemini-provider">Fournisseur de rédaction
       <select v-model="selectedProvider" @change="selectProvider(selectedProvider)">
-        <option v-for="provider in providers" :key="provider.id" :value="provider.id" :disabled="!provider.configured">{{ provider.label }} · {{ provider.configured ? provider.model : 'clé non configurée' }}</option>
+        <option v-for="provider in providers" :key="provider.id" :value="provider.id" :disabled="!provider.configured||(isCertificationDraft&&provider.id!=='gemini')">{{ provider.label }} · {{ provider.configured ? provider.model : 'clé non configurée' }}{{ isCertificationDraft&&provider.id!=='gemini'?' · lecture de lien non disponible':'' }}</option>
       </select>
     </label>
     <label class="admin-gemini-provider">Modèle pour cette génération
@@ -219,24 +253,26 @@ const allowedFields = AI_DRAFT_FIELDS[props.resource] as readonly string[];
       </select>
     </label>
     <div class="admin-gemini-model-description"><strong>{{ selectedModelOptions.find(model => model.id === selectedModel)?.label || selectedModel }}</strong><p>{{ selectedModelDescription }}</p></div>
-    <label v-if="!isProjectDraft" class="admin-gemini-prompt">Que veux-tu améliorer ou compléter ?
+    <label v-if="!canGenerateWithoutPrompt" class="admin-gemini-prompt">Que veux-tu améliorer ou compléter ?
       <textarea v-model="instructions" rows="3" maxlength="1000" placeholder="Ex. Reformule la description pour mettre l’accent sur les objectifs et le travail réellement réalisé."></textarea>
     </label>
-    <p v-else class="admin-gemini-privacy">Renseigne le lien GitHub dans la fiche projet. L’assistant analysera le dépôt et préparera automatiquement tous les champs qu’il peut justifier, sans consigne à écrire.</p>
-    <label class="admin-gemini-consent"><input v-model="consent" type="checkbox"><span>{{ isProjectDraft ? 'J’accepte d’envoyer les champs de la fiche et le contexte d’analyse du dépôt GitHub indiqué au fournisseur choisi. Seul Gemini peut aussi consulter l’URL de démo.' : 'J’accepte d’envoyer ma demande et les champs affichés au fournisseur choisi. Pour un projet, son dépôt explicitement saisi ou les dépôts trouvés avec tous les comptes GitHub configurés peuvent être transmis comme contexte. Seul Gemini peut aussi consulter l’URL de démo.' }}</span></label>
+    <p v-if="isProjectDraft" class="admin-gemini-privacy">Renseigne le lien GitHub dans la fiche projet. L’assistant analysera le dépôt et préparera automatiquement tous les champs qu’il peut justifier, sans consigne à écrire.</p>
+    <p v-if="isCertificationDraft" class="admin-gemini-privacy">Le lien public de vérification de la fiche sera transmis à Gemini pour analyse. Seules les informations lisibles et vérifiables seront proposées; les pages privées ou inaccessibles ne seront pas devinées.</p>
+    <label class="admin-gemini-consent"><input v-model="consent" type="checkbox"><span>{{ isProjectDraft ? 'J’accepte d’envoyer les champs de la fiche et le contexte d’analyse du dépôt GitHub indiqué au fournisseur choisi. Seul Gemini peut aussi consulter l’URL de démo.' : isCertificationDraft ? 'J’accepte d’envoyer les champs de la fiche et son lien de vérification public à Gemini pour préparer un brouillon.' : 'J’accepte d’envoyer ma demande et les champs affichés au fournisseur choisi. Pour un projet, son dépôt explicitement saisi ou les dépôts trouvés avec tous les comptes GitHub configurés peuvent être transmis comme contexte. Seul Gemini peut aussi consulter l’URL de démo.' }}</span></label>
     <p class="admin-gemini-privacy">Le modèle ne peut modifier que les champs listés pour cette fiche. Tu peux relire, annuler ou modifier le résultat avant d’enregistrer. L’historique reste dans cette édition; aucun brouillon n’est sauvegardé automatiquement.</p>
     <p v-if="error" class="admin-alert error" role="alert">{{ error }}</p>
-    <p v-if="repositoryNotice" :class="['admin-alert', repositoryNotice.included ? 'success' : 'error']" role="status">
-      {{ repositoryNotice.included ? 'Contexte GitHub du dépôt transmis au fournisseur.' : repositoryNotice.warning || 'Le dépôt n’a pas pu être lu; le brouillon repose seulement sur les champs de la fiche.' }}
+    <p v-if="evidenceNotice" :class="['admin-alert', evidenceNotice.included ? 'success' : 'error']" role="status">
+      {{ isCertificationDraft ? (evidenceNotice.included ? 'Lien de vérification transmis à Gemini; les informations proposées restent à relire.' : evidenceNotice.warning || 'Le lien de certification n’a pas pu être utilisé.') : (evidenceNotice.included ? 'Contexte GitHub du dépôt transmis au fournisseur.' : evidenceNotice.warning || 'Le dépôt n’a pas pu être lu; le brouillon repose seulement sur les champs de la fiche.') }}
     </p>
-    <button class="button secondary" type="button" :disabled="busy||!consent||!selectedProviderConfigured||(isProjectDraft?!repositoryUrl:instructions.trim().length<4)" @click="generateDraft">
-      <LoaderCircle v-if="busy" :size="15" class="admin-spinner" /><Sparkles v-else :size="15" />{{ busy?'Préparation du brouillon…':isProjectDraft?'Analyser le dépôt et préparer le projet':'Générer un brouillon' }}
+    <p v-if="isCertificationDraft&&!selectedProviderConfigured" class="admin-alert" role="status">Configure une clé Google Gemini dans « IA &amp; modèles » pour analyser les liens de vérification.</p>
+    <button class="button secondary" type="button" :disabled="busy||!consent||!selectedProviderConfigured||(isProjectDraft?!repositoryUrl:isCertificationDraft?!certificationUrl:instructions.trim().length<4)" @click="generateDraft">
+      <LoaderCircle v-if="busy" :size="15" class="admin-spinner" /><Sparkles v-else :size="15" />{{ busy?'Préparation du brouillon…':isProjectDraft?'Analyser le dépôt et préparer le projet':isCertificationDraft?'Analyser le lien et préparer le certificat':'Générer un brouillon' }}
     </button>
     <div v-if="draft" class="admin-gemini-draft" aria-live="polite">
       <strong>Brouillon à relire</strong>
       <dl>
         <div v-for="key in allowedFields.filter((field)=>Object.hasOwn(draft || {},field))" :key="key">
-          <dt>{{ fieldLabels[key]||key }}</dt><dd>{{ displayValue(draft[key]) }}</dd>
+          <dt>{{ fieldLabels[key]||key }}</dt><dd>{{ displayValue(draft[key], key) }}</dd>
         </div>
       </dl>
       <div class="admin-gemini-draft-actions">

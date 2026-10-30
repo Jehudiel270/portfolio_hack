@@ -1,11 +1,21 @@
 import type { AiDraftResource } from '~/shared/adminAi';
 
 const projectArrayFields = ['tags', 'categories', 'responsibilities'] as const;
+const certificationArrayFields = ['skills'] as const;
 const optionalMetricTextFields = ['context', 'unit', 'period', 'source'] as const;
 
 export function normalizeGeneratedDraft(resource: AiDraftResource, value: unknown): unknown {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
   const draft = { ...value } as Record<string, unknown>;
+  if (resource === 'certifications') {
+    for (const field of certificationArrayFields) {
+      const fieldValue = draft[field];
+      if (typeof fieldValue === 'string') {
+        draft[field] = fieldValue.split(/\r?\n|[,;]/u).map(item => item.trim()).filter(Boolean);
+      }
+    }
+    return draft;
+  }
   if (resource !== 'projects') return draft;
 
   for (const field of projectArrayFields) {

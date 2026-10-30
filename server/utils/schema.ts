@@ -64,7 +64,7 @@ export const journey = pgTable('portfolio_journey', {
   id: serial('id').primaryKey(), role: varchar('role', { length: 180 }).notNull(),
   organization: varchar('organization', { length: 180 }).notNull(), location: varchar('location', { length: 120 }),
   startDate: varchar('start_date', { length: 32 }).notNull(), endDate: varchar('end_date', { length: 32 }),
-  description: text('description').notNull(), imageUrl: text('image_url'), sortOrder: integer('sort_order').notNull().default(0),
+  description: text('description').notNull(), imageUrl: text('image_url'), documentUrl: text('document_url'), sortOrder: integer('sort_order').notNull().default(0),
 });
 export const educations = pgTable('portfolio_educations', {
   id: serial('id').primaryKey(),
@@ -77,6 +77,7 @@ export const educations = pgTable('portfolio_educations', {
   status: varchar('status', { length: 20 }).notNull().default('completed'),
   description: text('description').notNull().default(''),
   imageUrl: text('image_url'),
+  documentUrl: text('document_url'),
   sortOrder: integer('sort_order').notNull().default(0),
 });
 export const certifications = pgTable('portfolio_certifications', {
@@ -90,6 +91,7 @@ export const certifications = pgTable('portfolio_certifications', {
   skills: text('skills').array().notNull().default(sql`ARRAY[]::text[]`),
   description: text('description').notNull().default(''),
   imageUrl: text('image_url'),
+  documentUrl: text('document_url'),
   sortOrder: integer('sort_order').notNull().default(0),
 });
 export const achievements = pgTable('portfolio_achievements', {

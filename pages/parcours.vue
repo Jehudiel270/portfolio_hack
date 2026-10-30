@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { GraduationCap } from 'lucide-vue-next';
+import { Briefcase, ExternalLink, GraduationCap } from 'lucide-vue-next';
 import { useFetch, useSeoMeta } from '#imports';
 import { demoPortfolio, type PortfolioData } from '~/composables/usePortfolioData';
 
@@ -9,6 +9,16 @@ const { data } = await useFetch<PortfolioData>('/api/portfolio', { default: () =
 const portfolio = computed(() => data.value || demoPortfolio);
 const journey = computed(() => [...portfolio.value.journey].sort((a, b) => a.sortOrder - b.sortOrder));
 const educations = computed(() => [...portfolio.value.educations].sort((a, b) => a.sortOrder - b.sortOrder));
+
+function formatTimelineDate(value: string | null | undefined) {
+  if (!value) return '';
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value);
+  if (!dateOnly) return value;
+  const timestamp = Date.parse(`${value}T00:00:00.000Z`);
+  if (!Number.isFinite(timestamp)) return value;
+  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' })
+    .format(timestamp);
+}
 </script>
 
 <template>
@@ -22,24 +32,26 @@ const educations = computed(() => [...portfolio.value.educations].sort((a, b) =>
           <article v-for="item in educations" :key="item.id || `${item.institution}-${item.startDate}`" class="window timeline-card">
             <GraduationCap class="timeline-mark" :size="19" />
             <img v-if="item.imageUrl" class="journey-image" :src="item.imageUrl" :alt="`Visuel associé à ${item.title} à ${item.institution}`" loading="lazy">
-            <span class="date">{{ item.startDate }} — {{ item.endDate || 'En cours' }}</span>
+            <span class="date">{{ formatTimelineDate(item.startDate) }} — {{ formatTimelineDate(item.endDate) || (item.status === 'in_progress' ? 'En cours' : 'Terminée') }}</span>
             <h2>{{ item.title }}</h2>
             <p class="mono journey-organization">{{ item.institution }}<span v-if="item.degree"> · {{ item.degree }}</span><span v-if="item.location"> · {{ item.location }}</span></p>
             <p v-if="item.description">{{ item.description }}</p>
             <span class="education-status">{{ item.status === 'completed' ? 'Diplôme obtenu' : 'Formation en cours' }}</span>
+            <a v-if="item.documentUrl" class="button secondary journey-evidence-link" :href="item.documentUrl" target="_blank" rel="noopener noreferrer">Voir le justificatif PDF <ExternalLink :size="14" /></a>
           </article>
         </div>
       </section>
       <section v-if="journey.length" class="journey-group">
-        <h2>Expériences &amp; étapes de parcours</h2>
+        <h2>Expériences professionnelles</h2>
         <div class="timeline">
           <article v-for="item in journey" :key="`${item.organization}-${item.startDate}`" class="window timeline-card">
-            <GraduationCap class="timeline-mark" :size="19" />
+            <Briefcase class="timeline-mark" :size="19" />
             <img v-if="item.imageUrl" class="journey-image" :src="item.imageUrl" :alt="`Visuel associé à ${item.role} chez ${item.organization}`" loading="lazy">
-            <span class="date">{{ item.startDate }} — {{ item.endDate || 'Aujourd’hui' }}</span>
+            <span class="date">{{ formatTimelineDate(item.startDate) }} — {{ formatTimelineDate(item.endDate) || 'Aujourd’hui' }}</span>
             <h2>{{ item.role }}</h2>
             <p class="mono journey-organization">{{ item.organization }}<span v-if="item.location"> · {{ item.location }}</span></p>
             <p>{{ item.description }}</p>
+            <a v-if="item.documentUrl" class="button secondary journey-evidence-link" :href="item.documentUrl" target="_blank" rel="noopener noreferrer">Voir le justificatif PDF <ExternalLink :size="14" /></a>
           </article>
         </div>
       </section>

@@ -21,6 +21,14 @@ function expirationLabel(date: string | null) {
   if (!Number.isFinite(expiresAt)) return 'Échéance indiquée';
   return expiresAt < Date.now() ? 'Expirée' : 'Valide';
 }
+
+function formatCertificationDate(value: string | null) {
+  if (!value) return '';
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return value;
+  const timestamp = Date.parse(`${value}T00:00:00.000Z`);
+  if (!Number.isFinite(timestamp)) return value;
+  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' }).format(timestamp);
+}
 </script>
 
 <template>
@@ -40,8 +48,8 @@ function expirationLabel(date: string | null) {
             <h2>{{ item.title }}</h2>
             <p v-if="item.description">{{ item.description }}</p>
             <dl class="certification-details">
-              <div v-if="item.issuedAt"><dt>Obtenue</dt><dd>{{ item.issuedAt }}</dd></div>
-              <div v-if="item.expiresAt"><dt>Expiration</dt><dd>{{ item.expiresAt }}</dd></div>
+              <div v-if="item.issuedAt"><dt>Obtenue</dt><dd>{{ formatCertificationDate(item.issuedAt) }}</dd></div>
+              <div v-if="item.expiresAt"><dt>Expiration</dt><dd>{{ formatCertificationDate(item.expiresAt) }}</dd></div>
               <div v-if="item.credentialId"><dt>Identifiant</dt><dd>{{ item.credentialId }}</dd></div>
             </dl>
             <ul v-if="item.skills.length" class="certification-skills" aria-label="Compétences associées">
@@ -52,6 +60,9 @@ function expirationLabel(date: string | null) {
             </span>
             <a v-if="item.credentialUrl" class="button secondary certification-verify" :href="item.credentialUrl" target="_blank" rel="noopener noreferrer">
               Vérifier le certificat <ExternalLink :size="14" />
+            </a>
+            <a v-if="item.documentUrl" class="button secondary certification-verify" :href="item.documentUrl" target="_blank" rel="noopener noreferrer">
+              Voir le justificatif PDF <ExternalLink :size="14" />
             </a>
           </div>
         </article>

@@ -8,7 +8,7 @@ if (!url) throw new Error('DATABASE_URL doit être configurée avant les migrati
 
 const sql = postgres(url, { ssl: 'require', max: 1, connect_timeout: 10, prepare: false });
 try {
-  for (const name of ['0001_portfolio.sql', '0002_portfolio_content_expansion.sql', '0003_profile_social_links.sql', '0004_education_certifications.sql', '0005_ai_catalog_metadata.sql', '0006_projects_testimonials.sql', '0007_admin_operations.sql', '0008_ai_usage_metadata.sql', '0009_admin_totp.sql', '0010_admin_permissions.sql', '0011_project_metrics_and_layout.sql', '0012_admin_display_names.sql', '0013_ai_providers_and_analytics.sql', '0014_project_categories.sql']) {
+  for (const name of ['0001_portfolio.sql', '0002_portfolio_content_expansion.sql', '0003_profile_social_links.sql', '0004_education_certifications.sql', '0005_ai_catalog_metadata.sql', '0006_projects_testimonials.sql', '0007_admin_operations.sql', '0008_ai_usage_metadata.sql', '0009_admin_totp.sql', '0010_admin_permissions.sql', '0011_project_metrics_and_layout.sql', '0012_admin_display_names.sql', '0013_ai_providers_and_analytics.sql', '0014_project_categories.sql', '0015_public_content_documents.sql']) {
     if (name === '0010_admin_permissions.sql') {
       const [owner] = await sql`select id from portfolio_admins where lower(email) = ${SUPER_ADMIN_EMAIL} limit 1`;
       if (!owner) throw new Error(`Le compte super-administrateur ${SUPER_ADMIN_EMAIL} doit exister avant la migration des permissions.`);

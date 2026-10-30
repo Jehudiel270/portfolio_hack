@@ -2,7 +2,7 @@ export const AI_DRAFT_FIELDS = {
   projects: ['title', 'slug', 'description', 'tags', 'categories', 'demoUrl', 'repoUrl', 'year', 'projectType', 'caseRole', 'caseContext', 'responsibilities', 'outcomes', 'metrics'],
   journey: ['role', 'organization', 'location', 'startDate', 'endDate', 'description'],
   educations: ['title', 'institution', 'degree', 'location', 'startDate', 'endDate', 'status', 'description'],
-  certifications: ['title', 'issuer', 'issuedAt', 'expiresAt', 'skills', 'description'],
+  certifications: ['title', 'issuer', 'issuedAt', 'expiresAt', 'credentialId', 'credentialUrl', 'skills', 'description'],
   achievements: ['title', 'description', 'date', 'icon'],
   testimonials: ['author', 'role', 'organization', 'quote'],
   skills: ['name', 'icon', 'level', 'category'],
@@ -13,6 +13,7 @@ export const AI_DRAFT_FIELDS = {
 export type AiDraftResource = keyof typeof AI_DRAFT_FIELDS;
 
 export const PROJECT_AI_DRAFT_INSTRUCTIONS = 'Analyse le dépôt GitHub indiqué et prépare un brouillon complet pour la fiche projet. À partir du nom du dépôt, de sa description, du README, des manifests et du code source fourni, propose tous les champs que les preuves permettent de remplir : title, slug, description, tags, categories, demoUrl uniquement si une vraie URL de démo est explicitement documentée, year uniquement si une date de réalisation est prouvée, projectType, caseRole, caseContext, responsibilities, outcomes et metrics vérifiables. Utilise le nom du dépôt comme titre lisible si aucun meilleur titre n’est indiqué. Garde les technologies dans tags, choisis les catégories dans la liste fournie et limite-les à 12. N’invente aucun fait, client, lien, date, chiffre ou résultat. Laisse vide ou omets les champs impossibles à déduire; retourne metrics: [] sans métrique chiffrée vérifiable.';
+export const CERTIFICATION_AI_DRAFT_INSTRUCTIONS = 'Analyse le lien public de vérification fourni et prépare un brouillon de certification à partir des informations lisibles sur cette page. Renseigne uniquement les champs confirmés par la page : titre exact, organisme émetteur, dates d’obtention et d’expiration au format YYYY-MM-DD uniquement si le jour est indiqué, identifiant, compétences explicites et description factuelle courte. Conserve exactement le lien de vérification fourni. N’invente aucune date, compétence ou information absente; omets les champs inconnus. Si la page est inaccessible ou demande une connexion, ne déduis pas son contenu.';
 
 export const AI_TEXT_PROVIDERS = ['gemini', 'openai', 'anthropic', 'mistral', 'deepseek'] as const;
 export type AiTextProvider = typeof AI_TEXT_PROVIDERS[number];

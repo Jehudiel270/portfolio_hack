@@ -18,6 +18,16 @@ test('project AI drafts normalize common text-list and nullable metric output', 
   });
 });
 
+test('certification AI drafts normalize skills into a list', () => {
+  assert.deepEqual(normalizeGeneratedDraft('certifications', {
+    title: 'Certification cloud',
+    skills: 'Architecture cloud, Sécurité\nDéploiement',
+  }), {
+    title: 'Certification cloud',
+    skills: ['Architecture cloud', 'Sécurité', 'Déploiement'],
+  });
+});
+
 test('project AI validation problems identify the rejected field paths', () => {
   assert.deepEqual(describeDraftValidationIssues([
     { path: ['tags', 0], message: 'La technologie dépasse la longueur maximale.' },

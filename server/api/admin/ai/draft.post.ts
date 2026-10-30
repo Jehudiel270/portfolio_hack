@@ -1,6 +1,6 @@
 import { createError, defineEventHandler, readBody } from 'h3';
 import { z } from 'zod';
-import { AI_DRAFT_FIELDS, AI_TEXT_PROVIDERS, PROJECT_AI_DRAFT_INSTRUCTIONS, type AiDraftResource } from '~/shared/adminAi';
+import { AI_DRAFT_FIELDS, AI_TEXT_PROVIDERS, CERTIFICATION_AI_DRAFT_INSTRUCTIONS, PROJECT_AI_DRAFT_INSTRUCTIONS, type AiDraftResource } from '~/shared/adminAi';
 import { PROJECT_CATEGORIES } from '~/shared/projectCategories';
 import { requireAdmin } from '~/server/utils/auth';
 import { enforceAiRequestLimit } from '~/server/utils/aiRateLimit';
@@ -34,7 +34,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Demande IA invalide. Vérifie le texte et la fiche sélectionnée.' });
   }
   const { resource, provider, model, current } = parsedRequest.data;
-  const instructions = parsedRequest.data.instructions || (resource === 'projects' ? PROJECT_AI_DRAFT_INSTRUCTIONS : '');
+  const instructions = parsedRequest.data.instructions || (
+    resource === 'projects' ? PROJECT_AI_DRAFT_INSTRUCTIONS
+      : resource === 'certifications' ? CERTIFICATION_AI_DRAFT_INSTRUCTIONS
+        : ''
+  );
   if (!instructions) {
     throw createError({ statusCode: 400, statusMessage: 'Ajoute une consigne pour préparer ce brouillon.' });
   }
@@ -91,6 +95,15 @@ export default defineEventHandler(async (event) => {
   if (resource === 'projects' && typeof current.demoUrl === 'string' && current.demoUrl.trim()) {
     contextUrl = await validatePublicHttpsUrl(current.demoUrl);
   }
+  if (resource === 'certifications') {
+    if (provider !== 'gemini') {
+      throw createError({ statusCode: 400, statusMessage: 'La lecture du lien de certification nécessite Gemini et son contexte URL.' });
+    }
+    if (typeof current.credentialUrl !== 'string' || !current.credentialUrl.trim()) {
+      throw createError({ statusCode: 400, statusMessage: 'Ajoute le lien public de vérification du certificat avant de lancer l’analyse IA.' });
+    }
+    contextUrl = await validatePublicHttpsUrl(current.credentialUrl);
+  }
   const fieldsDescription = allowedFields.join(', ');
   const systemInstructionParts = [
     'Tu aides un administrateur à préparer un brouillon éditorial pour un portfolio professionnel.',
@@ -112,11 +125,20 @@ export default defineEventHandler(async (event) => {
       `Remplis aussi categories avec les catégories pertinentes parmi : ${PROJECT_CATEGORIES.join(', ')}. Sélectionne au maximum 12 catégories réellement justifiées par les preuves; une catégorie personnalisée courte est permise uniquement si aucune catégorie de la liste ne convient. categories ne doit jamais remplacer technologies/tags.`,
     );
   }
+  if (resource === 'certifications') {
+    systemInstructionParts.push(
+      'Pour une certification, utilise l’outil de contexte URL Gemini pour consulter le lien public transmis et ne te base que sur le contenu effectivement accessible de cette page.',
+      'Respecte exactement les champs autorisés. Retourne skills sous forme de tableau de chaînes. Les dates doivent être au format YYYY-MM-DD seulement si le jour exact est visible; ne complète jamais une date partielle.',
+      'Ne remplace pas et ne reformule pas credentialUrl. N’invente pas d’identifiant, d’émetteur, de date, de compétence ou de description. Si le lien est inaccessible, protégé par connexion ou ne contient pas la preuve, conserve les valeurs actuelles ou omets les champs inconnus.',
+    );
+  }
   const systemInstruction = systemInstructionParts.join(' ');
   const prompt = JSON.stringify({
     demande: instructions,
     donneesActuelles: currentValidation.data,
-    ...(contextUrl ? { URL_de_demo_a_consulter: contextUrl } : {}),
+    ...(contextUrl ? {
+      [resource === 'certifications' ? 'URL_de_certification_a_consulter' : 'URL_de_demo_a_consulter']: contextUrl,
+    } : {}),
     ...(repositoryContext ? { evidenceRepositoryGitHub: repositoryContext } : {}),
   });
 
@@ -195,6 +217,9 @@ export default defineEventHandler(async (event) => {
     }
     validatedDraft = addVerifiedRepositoryHomepage(validatedDraft, current.demoUrl, verifiedHomepage);
   }
+  if (resource === 'certifications' && typeof current.credentialUrl === 'string') {
+    validatedDraft.credentialUrl = current.credentialUrl;
+  }
 
   const repositoryEvidence = resource === 'projects' && (typeof current.repoUrl === 'string' && current.repoUrl.trim() || repositoryContext)
     ? {
@@ -209,5 +234,6 @@ export default defineEventHandler(async (event) => {
     model: resolvedModel,
     draft: validatedDraft,
     ...(repositoryEvidence ? { repositoryEvidence } : {}),
+    ...(resource === 'certifications' ? { sourceEvidence: { included: true } } : {}),
   };
 });
