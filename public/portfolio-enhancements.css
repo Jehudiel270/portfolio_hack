@@ -909,6 +909,36 @@ html[data-theme='light'] .topbar .nav-links a {
   transition: color 180ms ease, background-color 180ms ease;
 }
 
+.project-card-content {
+  display: block;
+  min-width: 0;
+}
+
+.project-name,
+.project-desc {
+  display: block;
+  min-width: 0;
+}
+
+.project-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.project-card-content > .tag-list {
+  display: flex;
+  flex-wrap: wrap;
+}
+
 html[data-theme='light'] .topbar .nav-links a:hover {
   background: rgba(20, 121, 145, 0.09);
   color: #12647a;

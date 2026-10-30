@@ -21,6 +21,9 @@ const projects = computed(() => {
   const featured = items.filter((project) => project.featured);
   return featured.length ? featured : items;
 });
+const recentProjects = computed(() => [...portfolio.value.projects]
+  .sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)) || a.sortOrder - b.sortOrder)
+  .slice(0, 3));
 const skills = computed(() => [...portfolio.value.skills].sort((a, b) => a.sortOrder - b.sortOrder));
 const techs = computed(() => [...portfolio.value.technologies].sort((a, b) => a.sortOrder - b.sortOrder));
 const aiTools = computed(() => techs.value.filter((technology) => technology.category === 'IA'));
@@ -52,7 +55,7 @@ function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoVi
       </section>
       <section class="panel-row" aria-label="Résumé du portfolio">
         <WindowPanel title="Projets récents" class="content-panel">
-          <div class="project-list"><NuxtLink v-for="project in projects.slice(0,3)" :key="project.slug" :to="`/projets/${project.slug}`" class="project-card"><span class="project-thumb"><img v-if="project.imageUrl" :src="project.imageUrl" :alt="project.title" loading="lazy"><Code2 v-else :size="23" /></span><span><span class="project-name">{{ project.title }}</span><span class="project-desc">{{ project.description }}</span><span v-if="project.categories?.length" class="tag-list project-category-tags"><span v-for="category in project.categories.slice(0,3)" :key="category" class="tag project-category-tag">{{ category }}</span></span><span class="tag-list"><ProjectTechnologyTags :tags="project.tags" :technologies="portfolio.technologies" :limit="2" :icon-size="14" /></span></span><ArrowRight class="project-arrow" :size="15" /></NuxtLink></div>
+          <div class="project-list"><NuxtLink v-for="project in recentProjects" :key="project.slug" :to="`/projets/${project.slug}`" class="project-card"><span class="project-thumb"><img v-if="project.imageUrl" :src="project.imageUrl" :alt="project.title" loading="lazy"><Code2 v-else :size="23" /></span><span class="project-card-content"><span class="project-name">{{ project.title }}</span><span class="project-desc">{{ project.description }}</span><span v-if="project.categories?.length" class="tag-list project-category-tags"><span v-for="category in project.categories.slice(0,3)" :key="category" class="tag project-category-tag">{{ category }}</span></span><span class="tag-list"><ProjectTechnologyTags :tags="project.tags" :technologies="portfolio.technologies" :limit="2" :icon-size="14" /></span></span><ArrowRight class="project-arrow" :size="15" /></NuxtLink></div>
         </WindowPanel>
         <WindowPanel title="À propos" class="content-panel">
           <div class="window-body"><p>{{ profile.bio }}</p><div class="about-points"><span class="about-point"><Workflow :size="15" /> Full Stack Web &amp; Mobile</span><span class="about-point"><Sparkles :size="15" /> Passionné de jeux vidéo</span><span class="about-point"><Activity :size="15" /> Toujours en apprentissage</span><span class="about-point"><Check :size="15" /> Ouvert aux opportunités</span></div></div>
