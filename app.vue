@@ -119,7 +119,7 @@ async function observePageContent() {
     '.site-shell main > *, .site-shell main .project-card, .site-shell main .project-feature, .site-shell main .content-panel, .site-shell main .timeline-card, .site-shell main .technology-card, .site-shell main .ai-tool-card, .site-shell main .achievement-card, .site-shell main .certification-card, .site-shell main .project-detail-content, .site-shell main .project-gallery-item',
   );
 
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+  if (window.matchMedia('(max-width: 720px), (pointer: coarse), (prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
     targets.forEach((target) => target.classList.remove('scroll-reveal', 'is-visible'));
     return;
   }
@@ -157,7 +157,9 @@ onMounted(() => {
   updateScrollProgress();
   window.addEventListener('scroll', updateScrollProgress, { passive: true });
   window.addEventListener('resize', updateScrollProgress, { passive: true });
-  document.addEventListener('pointermove', updateCardSpotlight, { passive: true });
+  if (window.matchMedia('(pointer: fine)').matches) {
+    document.addEventListener('pointermove', updateCardSpotlight, { passive: true });
+  }
 });
 
 type AnalyticsEvent = 'page_view' | 'outbound_click' | 'contact_start' | 'form_submit';

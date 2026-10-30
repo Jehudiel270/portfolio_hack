@@ -51,7 +51,7 @@ function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoVi
           <p class="lead">Je suis <strong>{{ profile.role }}</strong>, passionné par la technologie, les projets utiles et les univers digitaux qui sortent de l’ordinaire.</p>
           <div class="hero-actions"><a class="button" href="#projets">Voir mes projets <ArrowRight :size="16" /></a><a class="button secondary" href="#contact"><Mail :size="15" /> Me contacter</a><a v-if="portfolio.publicSettings?.cvUrl" class="button secondary" :href="portfolio.publicSettings.cvUrl" target="_blank" rel="noopener noreferrer">Télécharger mon CV ↗</a></div>
         </div>
-        <aside class="hero-side">        <WindowPanel title="Mes technologies" class="tech-window"><div class="tech-grid"><div v-for="(tech, index) in techs.slice(0,8)" :key="tech.name" class="tech-item"><span :class="['tech-badge', { violet: index % 3 === 1 }]"><TechnologyIcon :name="tech.name" :icon="tech.icon" size="22" /></span><span>{{ tech.name }}</span></div></div><div class="tech-note">// Et bien d’autres encore...</div></WindowPanel></aside>
+        <aside class="hero-side">                <WindowPanel title="Mes technologies" class="tech-window"><div class="tech-grid"><div v-for="(tech, index) in techs.slice(0,8)" :key="tech.name" class="tech-item"><span :class="['tech-badge', { violet: index % 3 === 1 }]"><TechnologyIcon :name="tech.name" :icon="tech.icon" size="22" /></span><span>{{ tech.name }}</span></div></div></WindowPanel></aside>
       </section>
       <section class="panel-row" aria-label="Résumé du portfolio">
         <WindowPanel title="Projets récents" class="content-panel">
@@ -61,7 +61,7 @@ function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoVi
           <div class="window-body"><p>{{ profile.bio }}</p><div class="about-points"><span class="about-point"><Workflow :size="15" /> Full Stack Web &amp; Mobile</span><span class="about-point"><Sparkles :size="15" /> Passionné de jeux vidéo</span><span class="about-point"><Activity :size="15" /> Toujours en apprentissage</span><span class="about-point"><Check :size="15" /> Ouvert aux opportunités</span></div></div>
         </WindowPanel>
         <WindowPanel title="Compétences" class="content-panel">
-          <div class="skill-list"><div v-for="skill in skills.slice(0,5)" :key="skill.name"><div class="skill-label"><span class="skill-name"><TechnologyIcon :name="skill.name" :icon="skill.icon" size="18" />{{ skill.name }}</span><span>{{ skill.level }}%</span></div><div class="skill-track"><span :style="{ width: `${skill.level}%` }"></span></div></div></div>
+          <div class="skill-list"><div v-for="skill in skills.slice(0,4)" :key="skill.name"><div class="skill-label"><span class="skill-name"><TechnologyIcon :name="skill.name" :icon="skill.icon" size="18" />{{ skill.name }}</span><span>{{ skill.level }}%</span></div><div class="skill-track"><span :style="{ width: `${skill.level}%` }"></span></div></div></div>
         </WindowPanel>
         <WindowPanel title="Contact" class="content-panel">
           <div class="contact-list">
@@ -76,24 +76,24 @@ function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoVi
         </WindowPanel>
       </section>
       <section id="apropos" class="section">
-        <div class="section-head"><div><div class="eyebrow">01 / Profil</div><h2>Un peu plus <span class="gradient-text">sur moi</span></h2></div><p class="section-sub">// Parcours, curiosité et code</p></div>
-        <div class="timeline"><article v-for="item in journey" :key="`${item.organization}-${item.startDate}`" class="window timeline-card"><GraduationCap class="timeline-mark" :size="19" /><img v-if="item.imageUrl" class="journey-image" :src="item.imageUrl" :alt="`Visuel associé à ${item.role} chez ${item.organization}`" loading="lazy"><span class="date">{{ item.startDate }} — {{ item.endDate || 'Aujourd’hui' }}</span><h3>{{ item.role }}</h3><p class="mono" style="color:#6cdff0;margin-bottom:7px">{{ item.organization }}<span v-if="item.location"> · {{ item.location }}</span></p><p>{{ item.description }}</p></article></div>
+        <div class="section-head"><div><div class="eyebrow">01 / Profil</div><h2>Un peu plus <span class="gradient-text">sur moi</span></h2></div><NuxtLink class="text-link section-sub" to="/parcours">Voir mon parcours complet <ArrowUpRight :size="14" /></NuxtLink></div>
+        <div class="timeline"><article v-for="item in journey.slice(0,3)" :key="`${item.organization}-${item.startDate}`" class="window timeline-card"><GraduationCap class="timeline-mark" :size="19" /><img v-if="item.imageUrl" class="journey-image" :src="item.imageUrl" :alt="`Visuel associé à ${item.role} chez ${item.organization}`" loading="lazy"><span class="date">{{ item.startDate }} — {{ item.endDate || 'Aujourd’hui' }}</span><h3>{{ item.role }}</h3><p class="mono" style="color:#6cdff0;margin-bottom:7px">{{ item.organization }}<span v-if="item.location"> · {{ item.location }}</span></p><p>{{ item.description }}</p></article></div>
       </section>
       <section id="projets" class="section">
-        <div class="section-head"><div><div class="eyebrow">02 / Sélection</div><h2>Projets <span class="gradient-text">récents</span></h2></div><p class="section-sub">// Des idées devenues interfaces</p></div>
-        <div class="project-grid"><ProjectCard v-for="project in projects" :key="project.slug" :project="project" :technologies="portfolio.technologies" /></div>
+        <div class="section-head"><div><div class="eyebrow">02 / Sélection</div><h2>Projets <span class="gradient-text">récents</span></h2></div><NuxtLink class="text-link section-sub" to="/projets">Tous mes projets <ArrowUpRight :size="14" /></NuxtLink></div>
+        <div class="project-grid"><ProjectCard v-for="project in projects.slice(0,3)" :key="project.slug" :project="project" :technologies="portfolio.technologies" /></div>
       </section>
       <section id="competences" class="section">
-        <div class="section-head"><div><div class="eyebrow">03 / Stack</div><h2>Outils et <span class="gradient-text">savoir-faire</span></h2></div><p class="section-sub">// Curieux de la stack à la livraison</p></div>
+        <div class="section-head"><div><div class="eyebrow">03 / Stack</div><h2>Outils et <span class="gradient-text">savoir-faire</span></h2></div><NuxtLink class="text-link section-sub" to="/competences">Toutes mes compétences <ArrowUpRight :size="14" /></NuxtLink></div>
         <div class="panel-row">
-          <WindowPanel title="Technologies" class="content-panel"><div class="tech-grid" style="grid-template-columns:repeat(4,1fr)"><div v-for="(tech,index) in techs" :key="tech.name" class="tech-item"><span :class="['tech-badge',{violet:index%3===1}]"><TechnologyIcon :name="tech.name" :icon="tech.icon" size="22" /></span><span>{{ tech.name }}</span></div></div></WindowPanel>
-          <WindowPanel title="Compétences clés" class="content-panel"><div class="skill-list"><div v-for="skill in skills" :key="skill.name"><div class="skill-label"><span class="skill-name"><TechnologyIcon :name="skill.name" :icon="skill.icon" size="18" />{{ skill.name }}</span><span>{{ skill.level }}%</span></div><div class="skill-track"><span :style="{width:`${skill.level}%`}"></span></div></div></div></WindowPanel>
+          <WindowPanel title="Technologies" class="content-panel"><div class="tech-grid" style="grid-template-columns:repeat(4,1fr)"><div v-for="(tech,index) in techs.slice(0,8)" :key="tech.name" class="tech-item"><span :class="['tech-badge',{violet:index%3===1}]"><TechnologyIcon :name="tech.name" :icon="tech.icon" size="22" /></span><span>{{ tech.name }}</span></div></div></WindowPanel>
+          <WindowPanel title="Compétences clés" class="content-panel"><div class="skill-list"><div v-for="skill in skills.slice(0,4)" :key="skill.name"><div class="skill-label"><span class="skill-name"><TechnologyIcon :name="skill.name" :icon="skill.icon" size="18" />{{ skill.name }}</span><span>{{ skill.level }}%</span></div><div class="skill-track"><span :style="{width:`${skill.level}%`}"></span></div></div></div></WindowPanel>
         </div>
       </section>
       <section v-if="aiTools.length" id="intelligence-artificielle" class="section ai-section">
-        <div class="section-head"><div><div class="eyebrow">04 / Intelligence artificielle</div><h2>IA, modèles <span class="gradient-text">&amp; assistants</span></h2></div><NuxtLink class="text-link" to="/ia">Explorer mon univers IA <ArrowUpRight :size="14" /></NuxtLink></div>
+        <div class="section-head"><div><div class="eyebrow">04 / Intelligence artificielle</div><h2>IA, modèles <span class="gradient-text">&amp; assistants</span></h2></div><NuxtLink class="text-link section-sub" to="/ia">Explorer mon univers IA <ArrowUpRight :size="14" /></NuxtLink></div>
         <div class="ai-tool-grid">
-          <article v-for="tool in aiTools" :key="tool.id || tool.name" class="window ai-tool-card">
+          <article v-for="tool in aiTools.slice(0,4)" :key="tool.id || tool.name" class="window ai-tool-card">
             <TechnologyIcon :name="tool.name" :icon="tool.icon" size="31" />
             <span>{{ tool.name }}</span>
             <span class="ai-tool-type">{{ getAiTypeLabel(tool.aiType) }}</span>
@@ -101,7 +101,7 @@ function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoVi
         </div>
       </section>
       <section v-if="certifications.length" class="section">
-        <div class="section-head"><div><div class="eyebrow">05 / Validation des acquis</div><h2>Certifications <span class="gradient-text">&amp; attestations</span></h2></div><NuxtLink class="text-link" to="/certifications">Toutes les certifications <ArrowUpRight :size="14" /></NuxtLink></div>
+        <div class="section-head"><div><div class="eyebrow">05 / Validation des acquis</div><h2>Certifications <span class="gradient-text">&amp; attestations</span></h2></div><NuxtLink class="text-link section-sub" to="/certifications">Toutes les certifications <ArrowUpRight :size="14" /></NuxtLink></div>
         <div class="certification-grid">
           <article v-for="item in certifications" :key="item.id || `${item.issuer}-${item.title}`" class="window certification-card">
             <img v-if="item.imageUrl" class="certification-badge" :src="item.imageUrl" :alt="`Badge de certification ${item.title}`" loading="lazy">
@@ -111,9 +111,9 @@ function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoVi
         </div>
       </section>
       <section v-if="portfolio.testimonials.length" class="section">
-        <div class="section-head"><div><div class="eyebrow">Retours</div><h2>Ils en parlent <span class="gradient-text">mieux que moi</span></h2></div><p class="section-sub">// Citations publiées avec autorisation</p></div>
+        <div class="section-head"><div><div class="eyebrow">Retours</div><h2>Ils en parlent <span class="gradient-text">mieux que moi</span></h2></div><NuxtLink v-if="portfolio.publicSettings?.visiblePages.temoignages !== false" class="text-link section-sub" to="/temoignages">Tous les témoignages <ArrowUpRight :size="14" /></NuxtLink></div>
         <div class="testimonial-grid">
-          <figure v-for="item in portfolio.testimonials" :key="item.id || item.author" class="window testimonial-card">
+          <figure v-for="item in portfolio.testimonials.slice(0,3)" :key="item.id || item.author" class="window testimonial-card">
             <blockquote>{{ item.quote }}</blockquote>
             <figcaption>
               <strong>{{ item.author }}</strong>
@@ -126,7 +126,7 @@ function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoVi
         </div>
       </section>
       <section id="contact" class="section">
-        <div class="section-head"><div><div class="eyebrow">07 / Canal ouvert</div><h2>On construit <span class="gradient-text">quelque chose ?</span></h2></div><p class="section-sub">// Réponse dès que possible</p></div>
+        <div class="section-head"><div><div class="eyebrow">07 / Canal ouvert</div><h2>On construit <span class="gradient-text">quelque chose ?</span></h2></div><NuxtLink class="text-link section-sub" to="/contact">Ouvrir la page de contact <ArrowUpRight :size="14" /></NuxtLink></div>
         <div class="contact-layout">
           <div class="window contact-card">
             <div class="eyebrow">Contact direct</div>

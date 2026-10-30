@@ -8,6 +8,8 @@ const visibleIcons = ref<FloatingIcon[]>([]);
 let timer = 0;
 let nextId = 0;
 let reducedMotionQuery: MediaQueryList | null = null;
+let mobilePerformanceQuery: MediaQueryList | null = null;
+const mobilePerformanceMode = ref(false);
 const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
 
 function spawn() {
@@ -30,7 +32,7 @@ function spawn() {
 }
 function schedule() {
   window.clearTimeout(timer);
-  if (!props.settings.enabled || !props.settings.icons.length) {
+  if (!props.settings.enabled || !props.settings.icons.length || mobilePerformanceMode.value) {
     visibleIcons.value = [];
     return;
   }
@@ -61,17 +63,21 @@ const layerZIndex = () => ({
 }[props.settings.layer]);
 onMounted(() => {
   reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  mobilePerformanceQuery = window.matchMedia('(max-width: 720px)');
+  mobilePerformanceMode.value = mobilePerformanceQuery.matches;
   reducedMotionQuery.addEventListener('change', schedule);
+  mobilePerformanceQuery.addEventListener('change', schedule);
   schedule();
 });
 onBeforeUnmount(() => {
   window.clearTimeout(timer);
   reducedMotionQuery?.removeEventListener('change', schedule);
+  mobilePerformanceQuery?.removeEventListener('change', schedule);
 });
 </script>
 
 <template>
-  <div v-if="settings.enabled" class="floating-tech-icons" :style="{ '--floating-icons-z': layerZIndex() }" aria-hidden="true">
+  <div v-if="settings.enabled && !mobilePerformanceMode" class="floating-tech-icons" :style="{ '--floating-icons-z': layerZIndex() }" aria-hidden="true">
     <span v-for="item in visibleIcons" :key="item.id" class="floating-tech-icons__item" :style="{
       '--icon-top': `${item.top}%`,
       '--icon-left': `${item.left}%`,

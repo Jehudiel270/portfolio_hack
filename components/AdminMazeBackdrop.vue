@@ -11,6 +11,8 @@ let resizeObserver: ResizeObserver | undefined;
 let drawingContext: CanvasRenderingContext2D | null = null;
 let scene: Scene | undefined;
 let reducedMotion = false;
+let mobilePerformanceMode = false;
+let mobilePerformanceQuery: MediaQueryList | undefined;
 let startedAt = 0;
 let lastFrameAt = 0;
 let width = 0;
@@ -197,6 +199,12 @@ function draw(timestamp: number) {
 function resize() {
   const element = canvas.value;
   if (!element) return;
+  if (mobilePerformanceMode) {
+    if (frame) window.cancelAnimationFrame(frame);
+    frame = 0;
+    scene = undefined;
+    return;
+  }
   drawingContext ??= element.getContext('2d');
   if (!drawingContext) return;
   width = window.innerWidth;
@@ -212,7 +220,7 @@ function resize() {
 }
 
 function handleVisibilityChange() {
-  if (document.hidden) {
+  if (document.hidden || mobilePerformanceMode) {
     if (frame) window.cancelAnimationFrame(frame);
     frame = 0;
     return;
@@ -221,8 +229,16 @@ function handleVisibilityChange() {
   if (!reducedMotion) frame = window.requestAnimationFrame(draw);
 }
 
+function handleMobilePerformanceChange(event: MediaQueryListEvent) {
+  mobilePerformanceMode = event.matches;
+  resize();
+}
+
 onMounted(() => {
   reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  mobilePerformanceQuery = window.matchMedia('(max-width: 720px)');
+  mobilePerformanceMode = mobilePerformanceQuery.matches;
+  mobilePerformanceQuery.addEventListener('change', handleMobilePerformanceChange);
   resizeObserver = new ResizeObserver(resize);
   if (canvas.value) resizeObserver.observe(canvas.value);
   window.addEventListener('resize', resize, { passive: true });
@@ -233,6 +249,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (frame) window.cancelAnimationFrame(frame);
   resizeObserver?.disconnect();
+  mobilePerformanceQuery?.removeEventListener('change', handleMobilePerformanceChange);
   window.removeEventListener('resize', resize);
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   drawingContext = null;

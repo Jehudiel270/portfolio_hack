@@ -9,7 +9,7 @@ export type { PublicSiteSettings } from '~/composables/usePortfolioData';
 export const defaultPublicSiteSettings: PublicSiteSettings = {
   visiblePages: {
     parcours: true, projets: true, competences: true, ia: true,
-    certifications: true, contact: true,
+    certifications: true, temoignages: true, contact: true,
   },
   appointmentUrl: null,
   cvUrl: null,

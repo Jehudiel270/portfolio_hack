@@ -8,7 +8,7 @@ const schema = z.object({
   path: z.string().max(120),
   event: z.enum(['page_view', 'outbound_click', 'contact_start', 'form_submit']).default('page_view'),
 });
-const publicPaths = new Set(['/', '/parcours', '/projets', '/competences', '/ia', '/realisations', '/certifications', '/contact', '/confidentialite']);
+const publicPaths = new Set(['/', '/parcours', '/projets', '/competences', '/ia', '/realisations', '/certifications', '/temoignages', '/contact', '/confidentialite']);
 
 function normalizePath(rawPath: string) {
   const raw = rawPath.split('?')[0].split('#')[0];

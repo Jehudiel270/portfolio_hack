@@ -8,6 +8,7 @@ const pageByPrefix: Record<string, string> = {
   competences: 'competences',
   ia: 'ia',
   certifications: 'certifications',
+  temoignages: 'temoignages',
   contact: 'contact',
 };
 

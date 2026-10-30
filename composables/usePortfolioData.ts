@@ -105,7 +105,7 @@ export interface PortfolioData { profile: Profile; projects: Project[]; journey:
 export const demoPortfolio: PortfolioData = {
   configured: false,
   source: 'demo',
-  publicSettings: { visiblePages:{parcours:true,projets:true,competences:true,ia:true,certifications:true,contact:true},appointmentUrl:null,cvUrl:null,missionTypes:[],background:defaultPublicBackgroundSettings,floatingIcons:defaultFloatingIconSettings,technologySlots:[],richText:defaultRichTextSettings,projectDisplay:defaultProjectDisplaySettings },
+  publicSettings: { visiblePages:{parcours:true,projets:true,competences:true,ia:true,certifications:true,temoignages:true,contact:true},appointmentUrl:null,cvUrl:null,missionTypes:[],background:defaultPublicBackgroundSettings,floatingIcons:defaultFloatingIconSettings,technologySlots:[],richText:defaultRichTextSettings,projectDisplay:defaultProjectDisplaySettings },
   profile: { name: "Carrel DOSSO", role: "Développeur Full Stack", location: "Bénin", education: "Étudiant en ABM · HECM", bio: "Je conçois des expériences web utiles, élégantes et accessibles. Du premier wireframe à la mise en production, j’aime transformer une idée en produit qui fonctionne vraiment.", avatarUrl: null, email: null, githubUrl: null, linkedinUrl: null, socialLinks: [], available: true },
   projects: [
     { title: "Line Laurence", slug: "line-laurence", description: "Site e-commerce de mode, pensé autour d’une expérience mobile fluide.", tags: ["Nuxt", "Supabase", "Tailwind"], demoUrl: null, repoUrl: null, imageUrl: null, year: "2025", featured: true, sortOrder: 1 },

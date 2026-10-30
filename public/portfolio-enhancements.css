@@ -939,6 +939,11 @@ html[data-theme='light'] .topbar .nav-links a {
   flex-wrap: wrap;
 }
 
+.section-head .text-link.section-sub {
+  color: var(--cyan);
+  font: 12px var(--mono);
+}
+
 html[data-theme='light'] .topbar .nav-links a:hover {
   background: rgba(20, 121, 145, 0.09);
   color: #12647a;
@@ -3449,6 +3454,61 @@ select optgroup {
 select option:checked {
   background-color: #0b5967;
   color: #f0feff;
+}
+
+@media (max-width: 720px) {
+  .site-shell:not(.admin-page) .eyebrow::before {
+    animation: none;
+  }
+
+  .site-shell:after {
+    filter: none;
+    background-attachment: scroll !important;
+  }
+
+  .hero-stage:before {
+    background-image:
+      linear-gradient(90deg, rgba(3, 7, 17, 0.72), rgba(3, 7, 17, 0.48) 45%, rgba(3, 7, 17, 0.74)),
+      linear-gradient(0deg, #030711, rgba(3, 7, 17, 0.25) 55%, #030711);
+    filter: none;
+  }
+
+  html[data-public-site='true'] .public-ambient-backdrop,
+  html[data-public-site='true'] .public-maze-canvas,
+  html[data-public-site='true'] .floating-tech-icons,
+  html[data-public-site='true'] .public-light-veil {
+    display: none !important;
+  }
+
+  .site-shell .window,
+  .site-shell .project-card,
+  .site-shell .project-feature,
+  .site-shell .achievement-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  html[data-public-site='true'] .route-enter-active,
+  html[data-public-site='true'] .route-leave-active {
+    will-change: auto;
+    transition: none !important;
+  }
+
+  html[data-public-site='true'] .route-enter-from,
+  html[data-public-site='true'] .route-leave-to {
+    filter: none;
+    transform: none;
+  }
+
+  html[data-theme='light'] .site-shell:after {
+    background-attachment: scroll !important;
+  }
+
+  html[data-theme='light'] .hero-stage:before {
+    background-image:
+      linear-gradient(90deg, rgba(241, 246, 253, 0.72), rgba(241, 246, 253, 0.45) 45%, rgba(241, 246, 253, 0.74)),
+      linear-gradient(0deg, #f2f6fc, rgba(241, 246, 253, 0.22) 55%, #f2f6fc);
+  }
 }
 
 html[data-theme='light'] select {

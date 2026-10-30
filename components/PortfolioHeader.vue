@@ -26,7 +26,7 @@ async function toggleTheme(event: MouseEvent) {
       delete root.dataset.themeTransition;
     }
   };
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce), (max-width: 720px)').matches;
 
   if (prefersReducedMotion || typeof document.startViewTransition !== 'function') {
     theme.value = nextTheme;
@@ -49,6 +49,7 @@ const links = [
   { to: '/competences', label: 'Compétences' },
   { to: '/ia', label: 'IA' },
   { to: '/certifications', label: 'Certifications' },
+  { to: '/temoignages', label: 'Témoignages' },
   { to: '/contact', label: 'Contact' },
 ];
 </script>
