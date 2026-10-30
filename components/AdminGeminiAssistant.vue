@@ -28,6 +28,16 @@ const selectedModelOptions = computed(() => selectedProviderOption.value?.availa
 const selectedModelDescription = computed(() => selectedModelOptions.value.find(model => model.id === selectedModel.value)?.description || 'Modèle utilisé uniquement pour cette génération.');
 const isProjectDraft = computed(() => props.resource === 'projects');
 const isCertificationDraft = computed(() => props.resource === 'certifications');
+const promptGuidance = computed(() => props.resource === 'journey'
+  ? 'Décris précisément ce que tu veux améliorer. L’IA ne lit pas le justificatif de cette expérience; ajoute ici les faits et missions à reprendre.'
+  : props.resource === 'educations'
+    ? 'Décris ce que tu veux rédiger ou améliorer. L’IA ne lit pas le justificatif de formation; sa proposition dépend des informations saisies dans la fiche.'
+    : '');
+const promptPlaceholder = computed(() => props.resource === 'journey'
+  ? 'Ex. Reformule ces missions en description professionnelle, sans ajouter de faits.'
+  : props.resource === 'educations'
+    ? 'Ex. Rédige un résumé de cette formation à partir des informations saisies, sans rien inventer.'
+    : 'Ex. Reformule la description pour mettre l’accent sur les objectifs et le travail réellement réalisé.');
 const repositoryUrl = computed(() => typeof props.current.repoUrl === 'string' ? props.current.repoUrl.trim() : '');
 const certificationUrl = computed(() => typeof props.current.credentialUrl === 'string' ? props.current.credentialUrl.trim() : '');
 const certificationDocumentUrl = computed(() => typeof props.current.documentUrl === 'string' ? props.current.documentUrl.trim() : '');
@@ -256,9 +266,11 @@ const allowedFields = AI_DRAFT_FIELDS[props.resource] as readonly string[];
       </select>
     </label>
     <div class="admin-gemini-model-description"><strong>{{ selectedModelOptions.find(model => model.id === selectedModel)?.label || selectedModel }}</strong><p>{{ selectedModelDescription }}</p></div>
-    <label v-if="!canGenerateWithoutPrompt" class="admin-gemini-prompt">Que veux-tu améliorer ou compléter ?
-      <textarea v-model="instructions" rows="3" maxlength="1000" placeholder="Ex. Reformule la description pour mettre l’accent sur les objectifs et le travail réellement réalisé."></textarea>
-    </label>
+    <div v-if="!canGenerateWithoutPrompt" class="admin-gemini-prompt">
+      <label for="admin-gemini-prompt">Que veux-tu améliorer ou compléter ?</label>
+      <p v-if="promptGuidance" class="admin-gemini-prompt-help">{{ promptGuidance }}</p>
+      <textarea id="admin-gemini-prompt" v-model="instructions" rows="3" maxlength="1000" :placeholder="promptPlaceholder"></textarea>
+    </div>
     <p v-if="isProjectDraft" class="admin-gemini-privacy">Renseigne le lien GitHub dans la fiche projet. L’assistant analysera le dépôt et préparera automatiquement tous les champs qu’il peut justifier, sans consigne à écrire.</p>
     <p v-if="isCertificationDraft" class="admin-gemini-privacy">Gemini analysera le lien public de vérification, le justificatif PDF/image déjà téléversé, ou les deux. Les éléments lisibles serviront à proposer les champs; rien n’est inventé si la source est inaccessible ou illisible.</p>
     <label class="admin-gemini-consent"><input v-model="consent" type="checkbox"><span>{{ isProjectDraft ? 'J’accepte d’envoyer les champs de la fiche et le contexte d’analyse du dépôt GitHub indiqué au fournisseur choisi. Seul Gemini peut aussi consulter l’URL de démo.' : isCertificationDraft ? 'J’accepte d’envoyer les champs de la fiche, le lien public et/ou le fichier justificatif à Gemini pour préparer un brouillon.' : 'J’accepte d’envoyer ma demande et les champs affichés au fournisseur choisi. Pour un projet, son dépôt explicitement saisi ou les dépôts trouvés avec tous les comptes GitHub configurés peuvent être transmis comme contexte. Seul Gemini peut aussi consulter l’URL de démo.' }}</span></label>

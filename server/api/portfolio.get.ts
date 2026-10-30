@@ -18,6 +18,11 @@ export default defineEventHandler(async () => {
     const publicSettings = await readPublicSiteSettings();
     const publicEvidence = <T extends { documentUrl: string | null; documentPublic: boolean }>(items: T[]) =>
       items.map(item => ({ ...item, documentUrl: item.documentPublic ? item.documentUrl : null, documentPublic: undefined }));
-    return {configured:true,source:'database' as const,profile:{name:profile.name,role:profile.role,location:profile.location,education:profile.education,bio:profile.bio,avatarUrl:profile.avatarUrl,email:profile.email,githubUrl:profile.githubUrl,linkedinUrl:profile.linkedinUrl,socialLinks:resolveSocialLinks(profile.socialLinks,profile),available:profile.available},projects:projectRows.map(p=>({...p,createdAt:undefined})),journey:publicEvidence(journeyRows),educations:publicEvidence(educationRows),certifications:publicEvidence(certificationRows),achievements:achievementRows,testimonials:testimonialRows,skills:skillRows,technologies:technologyRows,publicSettings};
+    const publicProjectsById = new Map(projectRows.map(project => [project.id, project]));
+    const publicTestimonials = testimonialRows.map(testimonial => {
+      const project = testimonial.projectId == null ? undefined : publicProjectsById.get(testimonial.projectId);
+      return { ...testimonial, projectTitle: project?.title ?? null, projectSlug: project?.slug ?? null };
+    });
+    return {configured:true,source:'database' as const,profile:{name:profile.name,role:profile.role,location:profile.location,education:profile.education,bio:profile.bio,avatarUrl:profile.avatarUrl,email:profile.email,githubUrl:profile.githubUrl,linkedinUrl:profile.linkedinUrl,socialLinks:resolveSocialLinks(profile.socialLinks,profile),available:profile.available},projects:projectRows.map(p=>({...p,createdAt:undefined})),journey:publicEvidence(journeyRows),educations:publicEvidence(educationRows),certifications:publicEvidence(certificationRows),achievements:achievementRows,testimonials:publicTestimonials,skills:skillRows,technologies:technologyRows,publicSettings};
   } catch (error) { console.warn('[Portfolio] Database unavailable; using non-persistent preview content.', error); return {...demoPortfolio,source:'unavailable' as const}; }
 });

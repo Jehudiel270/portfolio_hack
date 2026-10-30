@@ -2408,6 +2408,24 @@ html[data-theme='light'] .project-github-repository-picker > input {
   overscroll-behavior: contain;
 }
 
+.record-section-guide {
+  display: grid;
+  gap: 14px;
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--cyan);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--cyan) 5%, var(--bg));
+}
+.record-section-guide-heading { display: flex; align-items: center; gap: 8px; color: var(--cyan); }
+.record-section-guide-heading h2 { margin: 0; color: var(--text); font-size: 15px; }
+.record-section-guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+.record-section-guide-grid > div { min-width: 0; }
+.record-section-guide-grid h3 { margin: 0 0 4px; color: var(--text); font-size: 12px; }
+.record-section-guide-grid p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.admin-gemini-prompt-help { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+
 .editor-actions {
   position: sticky;
   bottom: -20px;
@@ -2696,6 +2714,8 @@ html[data-theme='light'] .admin-github-account { background: rgba(255, 255, 255,
 
 @media (max-width: 560px) {
   .admin-gemini-assistant { padding: 11px; }
+  .record-section-guide { padding: 12px; }
+  .record-section-guide-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .admin-gemini-consent { width: 100% !important; max-width: 100% !important; grid-column: 1 / -1; }
   .admin-gemini-consent > span { flex: 1 1 0 !important; width: auto !important; max-width: calc(100% - 24px) !important; min-width: 0 !important; }
   .admin-ai-provider-panel { padding: 11px; }

@@ -19,7 +19,7 @@ export const contentSchemas = {
   educations: z.object({ title:z.string().trim().min(1).max(180), institution:z.string().trim().min(1).max(180), degree:z.string().max(180).default(''), location:z.string().max(120).nullable().optional(), startDate:z.string().trim().min(1).max(32), endDate:z.string().max(32).nullable().optional(), status:z.enum(['in_progress','completed']).default('completed'), description:z.string().max(3000).default(''), imageUrl:optionalUrl, documentUrl:optionalUrl, documentPublic:z.boolean().default(false), publicationStatus:z.enum(['draft','published']).default('draft'), sortOrder:z.coerce.number().int().min(0).max(10000).default(0) }),
   certifications: z.object({ title:z.string().trim().min(1).max(180), issuer:z.string().trim().min(1).max(180), issuedAt:z.string().max(32).nullable().optional(), expiresAt:z.string().max(32).nullable().optional(), credentialId:z.string().max(180).nullable().optional(), credentialUrl:optionalUrl, skills:z.array(z.string().trim().min(1).max(80)).max(20).default([]), description:z.string().max(3000).default(''), imageUrl:optionalUrl, documentUrl:optionalUrl, documentPublic:z.boolean().default(false), publicationStatus:z.enum(['draft','published']).default('draft'), sortOrder:z.coerce.number().int().min(0).max(10000).default(0) }),
   achievements: z.object({ title:z.string().trim().min(1).max(180), description:z.string().trim().min(1).max(3000), date:z.string().max(32).nullable().optional(), icon:z.string().max(60).default('Sparkles'), sortOrder:z.coerce.number().int().min(0).max(10000).default(0) }),
-  testimonials: z.object({ author:z.string().trim().min(1).max(140), role:z.string().max(180).nullable().optional(), organization:z.string().max(180).nullable().optional(), quote:z.string().trim().min(10).max(2000), permissionConfirmed:z.coerce.boolean().default(false), publicationStatus:z.enum(['draft','published']).default('draft'), sortOrder:z.coerce.number().int().min(0).max(10000).default(0) }),
+  testimonials: z.object({ author:z.string().trim().min(1).max(140), role:z.string().max(180).nullable().optional(), organization:z.string().max(180).nullable().optional(), projectId:z.coerce.number().int().positive().nullable().optional(), sourceUrl:optionalUrl, receivedAt:z.string().max(32).nullable().optional(), quote:z.string().trim().min(10).max(2000), permissionConfirmed:z.coerce.boolean().default(false), publicationStatus:z.enum(['draft','published']).default('draft'), sortOrder:z.coerce.number().int().min(0).max(10000).default(0) }),
   skills: z.object({ name:z.string().trim().min(1).max(120), icon:z.string().max(120).default(''), level:z.coerce.number().int().min(0).max(100), category:z.string().trim().min(1).max(80), sortOrder:z.coerce.number().int().min(0).max(10000).default(0) }),
   technologies: z.object({ name:z.string().trim().min(1).max(100), icon:z.string().max(80).default(''), category:z.string().trim().min(1).max(80), aiType:z.enum(['provider','model','assistant','tool']).nullable().optional(), aiProviderId:z.coerce.number().int().positive().nullable().optional(), aiAccessMode:z.enum(['web','api','local','hybrid','other']).nullable().optional(), aiUseCases:z.array(z.string().trim().min(1).max(60)).max(12).optional(), aiVerifiedAt:z.string().max(32).nullable().optional(), description:z.string().max(3000).nullable().optional(), officialUrl:optionalUrl, sortOrder:z.coerce.number().int().min(0).max(10000).default(0) }),
 } as const;
@@ -70,6 +70,14 @@ async function validateTechnologyAiMetadata(value: TechnologyAiMetadata) {
   }
 }
 
+async function validateTestimonialProject(projectId: number | null | undefined) {
+  if (projectId == null) return;
+  const [project] = await getDatabase().select({ id: projects.id }).from(projects).where(eq(projects.id, projectId)).limit(1);
+  if (!project) {
+    throw createError({ statusCode: 400, statusMessage: 'Projet associé introuvable.', message: 'Choisis un projet existant ou laisse le champ de projet associé vide.' });
+  }
+}
+
 export async function listResource(name: ResourceName) {
   const table:any = resourceTables[name]; return getDatabase().select().from(table).orderBy(asc(table.sortOrder));
 }
@@ -110,6 +118,7 @@ export async function createResource(name: ResourceName, body: unknown) {
     }
   }
   if (name === 'technologies') await validateTechnologyAiMetadata(value as TechnologyAiMetadata);
+  if (name === 'testimonials') await validateTestimonialProject((value as { projectId?: number | null }).projectId);
   const testimonialValue = value as { publicationStatus?: string; permissionConfirmed?: boolean };
   if (name === 'testimonials' && testimonialValue.publicationStatus === 'published' && !testimonialValue.permissionConfirmed) {
     throw createError({ statusCode: 400, statusMessage: 'Autorisation requise.', message: 'Confirme l’autorisation de publication avant de publier ce témoignage.' });
@@ -147,6 +156,9 @@ export async function updateResource(name: ResourceName, id: number, body: unkno
   const [current] = await db.select().from(table).where(eq(table.id,id)).limit(1);
   if (!current) throw createError({statusCode:404,statusMessage:'Élément introuvable.'});
   const currentSnapshot = current as Record<string, unknown>;
+  if (name === 'testimonials' && Object.hasOwn(value, 'projectId')) {
+    await validateTestimonialProject((value as { projectId?: number | null }).projectId);
+  }
   if (name === 'technologies') {
     const merged = { ...current, ...value } as TechnologyAiMetadata;
     await validateTechnologyAiMetadata(merged);

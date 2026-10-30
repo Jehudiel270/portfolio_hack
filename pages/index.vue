@@ -112,7 +112,13 @@ function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoVi
         <div class="testimonial-grid">
           <figure v-for="item in portfolio.testimonials" :key="item.id || item.author" class="window testimonial-card">
             <blockquote>{{ item.quote }}</blockquote>
-            <figcaption><strong>{{ item.author }}</strong><span>{{ [item.role,item.organization].filter(Boolean).join(' · ') }}</span></figcaption>
+            <figcaption>
+              <strong>{{ item.author }}</strong>
+              <span>{{ [item.role,item.organization].filter(Boolean).join(' · ') }}</span>
+              <NuxtLink v-if="item.projectSlug && item.projectTitle" class="text-link" :to="`/projets/${item.projectSlug}`">Projet associé : {{ item.projectTitle }} <ArrowUpRight :size="13" /></NuxtLink>
+              <time v-if="item.receivedAt" class="date" :datetime="item.receivedAt">{{ item.receivedAt }}</time>
+              <a v-if="item.sourceUrl" class="text-link" :href="item.sourceUrl" target="_blank" rel="noopener noreferrer">Voir la source publique <ArrowUpRight :size="13" /></a>
+            </figcaption>
           </figure>
         </div>
       </section>
