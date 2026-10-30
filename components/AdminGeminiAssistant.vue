@@ -30,6 +30,8 @@ const isProjectDraft = computed(() => props.resource === 'projects');
 const isCertificationDraft = computed(() => props.resource === 'certifications');
 const repositoryUrl = computed(() => typeof props.current.repoUrl === 'string' ? props.current.repoUrl.trim() : '');
 const certificationUrl = computed(() => typeof props.current.credentialUrl === 'string' ? props.current.credentialUrl.trim() : '');
+const certificationDocumentUrl = computed(() => typeof props.current.documentUrl === 'string' ? props.current.documentUrl.trim() : '');
+const hasCertificationEvidence = computed(() => Boolean(certificationUrl.value || certificationDocumentUrl.value));
 const canUseSelectedProvider = computed(() => !isCertificationDraft.value || selectedProvider.value === 'gemini');
 const selectedProviderConfigured = computed(() => canUseSelectedProvider.value && providers.value.some(provider => provider.id === selectedProvider.value && provider.configured));
 const generationInstructions = computed(() => isProjectDraft.value
@@ -99,6 +101,7 @@ const fieldLabels: Record<string, string> = {
   sortOrder: 'Ordre d’affichage',
   credentialId: 'Identifiant du certificat',
   credentialUrl: 'Lien de vérification',
+  documentUrl: 'Justificatif joint',
   officialUrl: 'Lien officiel',
 };
 
@@ -127,8 +130,8 @@ async function generateDraft() {
     error.value = 'Renseigne le lien du dépôt GitHub dans la fiche projet avant de générer le brouillon.';
     return;
   }
-  if (isCertificationDraft.value && !certificationUrl.value) {
-    error.value = 'Renseigne le lien public de vérification du certificat avant de lancer son analyse.';
+  if (isCertificationDraft.value && !hasCertificationEvidence.value) {
+    error.value = 'Ajoute un lien de vérification ou téléverse un justificatif PDF/image avant de lancer l’analyse.';
     return;
   }
   if (isCertificationDraft.value && selectedProvider.value !== 'gemini') {
@@ -257,16 +260,16 @@ const allowedFields = AI_DRAFT_FIELDS[props.resource] as readonly string[];
       <textarea v-model="instructions" rows="3" maxlength="1000" placeholder="Ex. Reformule la description pour mettre l’accent sur les objectifs et le travail réellement réalisé."></textarea>
     </label>
     <p v-if="isProjectDraft" class="admin-gemini-privacy">Renseigne le lien GitHub dans la fiche projet. L’assistant analysera le dépôt et préparera automatiquement tous les champs qu’il peut justifier, sans consigne à écrire.</p>
-    <p v-if="isCertificationDraft" class="admin-gemini-privacy">Le lien public de vérification de la fiche sera transmis à Gemini pour analyse. Seules les informations lisibles et vérifiables seront proposées; les pages privées ou inaccessibles ne seront pas devinées.</p>
-    <label class="admin-gemini-consent"><input v-model="consent" type="checkbox"><span>{{ isProjectDraft ? 'J’accepte d’envoyer les champs de la fiche et le contexte d’analyse du dépôt GitHub indiqué au fournisseur choisi. Seul Gemini peut aussi consulter l’URL de démo.' : isCertificationDraft ? 'J’accepte d’envoyer les champs de la fiche et son lien de vérification public à Gemini pour préparer un brouillon.' : 'J’accepte d’envoyer ma demande et les champs affichés au fournisseur choisi. Pour un projet, son dépôt explicitement saisi ou les dépôts trouvés avec tous les comptes GitHub configurés peuvent être transmis comme contexte. Seul Gemini peut aussi consulter l’URL de démo.' }}</span></label>
+    <p v-if="isCertificationDraft" class="admin-gemini-privacy">Gemini analysera le lien public de vérification, le justificatif PDF/image déjà téléversé, ou les deux. Les éléments lisibles serviront à proposer les champs; rien n’est inventé si la source est inaccessible ou illisible.</p>
+    <label class="admin-gemini-consent"><input v-model="consent" type="checkbox"><span>{{ isProjectDraft ? 'J’accepte d’envoyer les champs de la fiche et le contexte d’analyse du dépôt GitHub indiqué au fournisseur choisi. Seul Gemini peut aussi consulter l’URL de démo.' : isCertificationDraft ? 'J’accepte d’envoyer les champs de la fiche, le lien public et/ou le fichier justificatif à Gemini pour préparer un brouillon.' : 'J’accepte d’envoyer ma demande et les champs affichés au fournisseur choisi. Pour un projet, son dépôt explicitement saisi ou les dépôts trouvés avec tous les comptes GitHub configurés peuvent être transmis comme contexte. Seul Gemini peut aussi consulter l’URL de démo.' }}</span></label>
     <p class="admin-gemini-privacy">Le modèle ne peut modifier que les champs listés pour cette fiche. Tu peux relire, annuler ou modifier le résultat avant d’enregistrer. L’historique reste dans cette édition; aucun brouillon n’est sauvegardé automatiquement.</p>
     <p v-if="error" class="admin-alert error" role="alert">{{ error }}</p>
     <p v-if="evidenceNotice" :class="['admin-alert', evidenceNotice.included ? 'success' : 'error']" role="status">
-      {{ isCertificationDraft ? (evidenceNotice.included ? 'Lien de vérification transmis à Gemini; les informations proposées restent à relire.' : evidenceNotice.warning || 'Le lien de certification n’a pas pu être utilisé.') : (evidenceNotice.included ? 'Contexte GitHub du dépôt transmis au fournisseur.' : evidenceNotice.warning || 'Le dépôt n’a pas pu être lu; le brouillon repose seulement sur les champs de la fiche.') }}
+      {{ isCertificationDraft ? (evidenceNotice.included ? 'Source de certification transmise à Gemini; les informations proposées restent à relire.' : evidenceNotice.warning || 'Aucune source de certification n’a pu être analysée.') : (evidenceNotice.included ? 'Contexte GitHub du dépôt transmis au fournisseur.' : evidenceNotice.warning || 'Le dépôt n’a pas pu être lu; le brouillon repose seulement sur les champs de la fiche.') }}
     </p>
-    <p v-if="isCertificationDraft&&!selectedProviderConfigured" class="admin-alert" role="status">Configure une clé Google Gemini dans « IA &amp; modèles » pour analyser les liens de vérification.</p>
-    <button class="button secondary" type="button" :disabled="busy||!consent||!selectedProviderConfigured||(isProjectDraft?!repositoryUrl:isCertificationDraft?!certificationUrl:instructions.trim().length<4)" @click="generateDraft">
-      <LoaderCircle v-if="busy" :size="15" class="admin-spinner" /><Sparkles v-else :size="15" />{{ busy?'Préparation du brouillon…':isProjectDraft?'Analyser le dépôt et préparer le projet':isCertificationDraft?'Analyser le lien et préparer le certificat':'Générer un brouillon' }}
+    <p v-if="isCertificationDraft&&!selectedProviderConfigured" class="admin-alert" role="status">Configure une clé Google Gemini dans « IA &amp; modèles » pour analyser le lien ou le justificatif.</p>
+    <button class="button secondary" type="button" :disabled="busy||!consent||!selectedProviderConfigured||(isProjectDraft?!repositoryUrl:isCertificationDraft?!hasCertificationEvidence:instructions.trim().length<4)" @click="generateDraft">
+      <LoaderCircle v-if="busy" :size="15" class="admin-spinner" /><Sparkles v-else :size="15" />{{ busy?'Préparation du brouillon…':isProjectDraft?'Analyser le dépôt et préparer le projet':isCertificationDraft?'Analyser la preuve et préparer le certificat':'Générer un brouillon' }}
     </button>
     <div v-if="draft" class="admin-gemini-draft" aria-live="polite">
       <strong>Brouillon à relire</strong>

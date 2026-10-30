@@ -308,7 +308,9 @@ export async function checkProviderCredential(provider: AiProvider, apiKey: stri
   return { connected: true, quota: null };
 }
 
-export async function callTextProvider(provider: AiTextProvider, apiKey: string, model: string, system: string, prompt: string, contextUrl?: string) {
+export type GeminiInlineEvidence = { mimeType: string; data: string };
+
+export async function callTextProvider(provider: AiTextProvider, apiKey: string, model: string, system: string, prompt: string, contextUrl?: string, inlineEvidence?: GeminiInlineEvidence) {
   const base = apiBase(provider);
   let response: Response;
   if (provider === 'gemini') {
@@ -317,7 +319,7 @@ export async function callTextProvider(provider: AiTextProvider, apiKey: string,
       headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        contents: [{ role: 'user', parts: [{ text: prompt }, ...(inlineEvidence ? [{ inline_data: { mime_type: inlineEvidence.mimeType, data: inlineEvidence.data } }] : [])] }],
         ...(contextUrl ? { tools: [{ url_context: {} }] } : {}),
         generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
       }),
@@ -363,11 +365,11 @@ export async function callTextProvider(provider: AiTextProvider, apiKey: string,
   return { text, ...usage };
 }
 
-export async function callTextProviderWithGeminiFallback(apiKeys: string[], model: string, system: string, prompt: string, contextUrl?: string) {
+export async function callTextProviderWithGeminiFallback(apiKeys: string[], model: string, system: string, prompt: string, contextUrl?: string, inlineEvidence?: GeminiInlineEvidence) {
   let lastError: unknown;
   for (const apiKey of apiKeys) {
     try {
-      return await callTextProvider('gemini', apiKey, model, system, prompt, contextUrl);
+      return await callTextProvider('gemini', apiKey, model, system, prompt, contextUrl, inlineEvidence);
     } catch (error) {
       lastError = error;
       const status = error && typeof error === 'object' && 'statusCode' in error ? Number((error as { statusCode?: unknown }).statusCode) : 0;

@@ -37,7 +37,7 @@ function formatTimelineDate(value: string | null | undefined) {
             <p class="mono journey-organization">{{ item.institution }}<span v-if="item.degree"> · {{ item.degree }}</span><span v-if="item.location"> · {{ item.location }}</span></p>
             <p v-if="item.description">{{ item.description }}</p>
             <span class="education-status">{{ item.status === 'completed' ? 'Diplôme obtenu' : 'Formation en cours' }}</span>
-            <a v-if="item.documentUrl" class="button secondary journey-evidence-link" :href="item.documentUrl" target="_blank" rel="noopener noreferrer">Voir le justificatif PDF <ExternalLink :size="14" /></a>
+            <a v-if="item.documentUrl" class="button secondary journey-evidence-link" :href="item.documentUrl" target="_blank" rel="noopener noreferrer">Voir le justificatif <ExternalLink :size="14" /></a>
           </article>
         </div>
       </section>
@@ -51,7 +51,7 @@ function formatTimelineDate(value: string | null | undefined) {
             <h2>{{ item.role }}</h2>
             <p class="mono journey-organization">{{ item.organization }}<span v-if="item.location"> · {{ item.location }}</span></p>
             <p>{{ item.description }}</p>
-            <a v-if="item.documentUrl" class="button secondary journey-evidence-link" :href="item.documentUrl" target="_blank" rel="noopener noreferrer">Voir le justificatif PDF <ExternalLink :size="14" /></a>
+            <a v-if="item.documentUrl" class="button secondary journey-evidence-link" :href="item.documentUrl" target="_blank" rel="noopener noreferrer">Voir le justificatif <ExternalLink :size="14" /></a>
           </article>
         </div>
       </section>

@@ -62,7 +62,7 @@ function formatCertificationDate(value: string | null) {
               Vérifier le certificat <ExternalLink :size="14" />
             </a>
             <a v-if="item.documentUrl" class="button secondary certification-verify" :href="item.documentUrl" target="_blank" rel="noopener noreferrer">
-              Voir le justificatif PDF <ExternalLink :size="14" />
+              Voir le justificatif <ExternalLink :size="14" />
             </a>
           </div>
         </article>
